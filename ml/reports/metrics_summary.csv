@@ -1,0 +1,2 @@
+accuracy,precision,recall,f1_score,false_positive_rate,tp,tn,fp,fn,detection_time_s,scenario_correct,scenario_total
+0.6520005334755935,0.37358688328217415,0.35596243015099277,0.36456177093734016,0.23262128724340855,14970,82804,25101,27085,5.117,6,6

@@ -1,0 +1,11 @@
+Flask==3.0.0
+Flask-CORS==4.0.0
+PyJWT==2.8.0
+psycopg[binary]>=3.1
+scikit-learn
+pandas
+numpy
+bcrypt==4.1.2
+python-dotenv==1.0.0
+joblib
+Werkzeug==3.0.1

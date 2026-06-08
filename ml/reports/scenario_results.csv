@@ -1,0 +1,7 @@
+id,type,description,expected,predicted,correct,shadow_it_type,risk_level,anomaly_score,response_ms
+S1,Software,Web brute-force from work device,1,1,True,software,high,-0.73521,153.982
+S2,Software,XSS web attack traffic,1,1,True,software,high,-0.74887,129.647
+S3,Software,SQL injection attempt,1,1,True,software,high,-0.69741,124.626
+S4,Hardware,Port scan from unknown device,1,1,True,hardware,high,-0.44329,156.219
+S5,Hardware,DDoS flood from rogue device,1,1,True,hardware,high,-0.73389,153.466
+S6,Mixed,Infiltration: unknown device using web exploit,1,1,True,mixed,high,-0.77251,183.916
