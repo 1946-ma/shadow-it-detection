@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import RiskBadge from "./RiskBadge";
 import TypeBadge from "./TypeBadge";
 
@@ -9,15 +10,17 @@ const Row = ({ k, v }) => (
 );
 
 const ScoreBar = ({ score }) => {
-  const norm = Math.min(1, Math.max(0, Math.abs(score) / 0.3));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
+  const norm  = Math.min(1, Math.max(0, Math.abs(score) / 0.3));
   const color = norm > 0.6 ? "var(--danger)" : norm > 0.3 ? "var(--warning)" : "var(--success)";
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text2)", marginBottom: 4 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"var(--text2)", marginBottom:4 }}>
         <span>Anomaly Score</span><span>{score?.toFixed(5)}</span>
       </div>
       <div className="score-bar-wrap">
-        <div className="score-bar" style={{ width: `${norm * 100}%`, background: color }} />
+        <div className="score-bar" style={{ width: mounted ? `${norm * 100}%` : "0%", background: color }} />
       </div>
     </div>
   );
@@ -27,7 +30,7 @@ const DeviceProfile = ({ detection }) => {
   if (!detection) return null;
   const d = detection;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       <div className="card">
         <div className="card-title">Network Identity</div>
         <Row k="Source IP"   v={<code>{d.src_ip}</code>} />
@@ -45,7 +48,7 @@ const DeviceProfile = ({ detection }) => {
       </div>
       <div className="card">
         <div className="card-title">Threat Classification</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
           <TypeBadge type={d.shadow_it_type} />
           <RiskBadge level={d.risk_level} />
         </div>

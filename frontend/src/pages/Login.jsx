@@ -30,9 +30,15 @@ const Login = () => {
 
   return (
     <div className="login-wrap">
+      <div className="login-bg">
+        <div className="login-bg-gradient" />
+        <div className="login-bg-grid" />
+        <div className="login-bg-scan" />
+      </div>
+
       <div className="login-card">
         <div className="login-logo">
-          <div className="icon">🛡️</div>
+          <span className="icon">🛡️</span>
           <h1>Shadow IT Detection</h1>
           <p>AI-Driven Security Framework · UMaT</p>
         </div>

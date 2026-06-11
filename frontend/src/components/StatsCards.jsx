@@ -1,17 +1,41 @@
-const Card = ({ label, value, color }) => (
-  <div className="stat-card">
-    <div className="stat-value" style={{ color }}>{value ?? "—"}</div>
-    <div className="stat-label">{label}</div>
-  </div>
-);
+import { useState, useEffect } from "react";
+
+const useCountUp = (target, duration = 950) => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const end = Number(target);
+    if (target == null || isNaN(end)) return;
+    if (end === 0) { setCount(0); return; }
+    let startTime = null;
+    const step = (ts) => {
+      if (!startTime) startTime = ts;
+      const p = Math.min((ts - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setCount(Math.round(eased * end));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return target == null ? "—" : count;
+};
+
+const Card = ({ label, value, color, glow }) => {
+  const display = useCountUp(value);
+  return (
+    <div className={`stat-card stat-card--${glow}`}>
+      <div className="stat-value" style={{ color }}>{display}</div>
+      <div className="stat-label">{label}</div>
+    </div>
+  );
+};
 
 const StatsCards = ({ stats, loading }) => {
   if (loading) return (
     <div className="stats-grid">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="stat-card" style={{ opacity: .4 }}>
-          <div className="stat-value">—</div>
-          <div className="stat-label">Loading…</div>
+        <div key={i} className="stat-card stat-card--skeleton">
+          <div className="skeleton" style={{ height: 40, width: "52%", borderRadius: 6, marginBottom: 10 }} />
+          <div className="skeleton" style={{ height: 11, width: "72%", borderRadius: 4 }} />
         </div>
       ))}
     </div>
@@ -23,12 +47,12 @@ const StatsCards = ({ stats, loading }) => {
 
   return (
     <div className="stats-grid">
-      <Card label="Total Detections" value={stats.total_detections} color="var(--accent)" />
-      <Card label="Unresolved"       value={stats.unresolved}       color="var(--danger)" />
-      <Card label="Resolved"         value={stats.resolved}         color="var(--success)" />
-      <Card label="Software Shadow IT" value={bt.software ?? 0}    color="var(--accent)" />
-      <Card label="Hardware Shadow IT" value={bt.hardware ?? 0}    color="var(--purple)" />
-      <Card label="High Risk"        value={br.high ?? 0}           color="var(--danger)" />
+      <Card label="Total Detections"   value={stats.total_detections} color="var(--accent)"   glow="accent"  />
+      <Card label="Unresolved"         value={stats.unresolved}       color="var(--danger)"   glow="danger"  />
+      <Card label="Resolved"           value={stats.resolved}         color="var(--success)"  glow="success" />
+      <Card label="Software Shadow IT" value={bt.software ?? 0}       color="var(--accent)"   glow="accent"  />
+      <Card label="Hardware Shadow IT" value={bt.hardware ?? 0}       color="var(--purple)"   glow="purple"  />
+      <Card label="High Risk"          value={br.high ?? 0}           color="var(--danger)"   glow="danger"  />
     </div>
   );
 };

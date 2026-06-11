@@ -24,7 +24,7 @@ const AlertPanel = ({ alerts = [], loading }) => {
         </thead>
         <tbody>
           {alerts.map((a) => (
-            <tr key={a.id}>
+            <tr key={a.id} className={a.risk_level === "high" ? "row-high" : ""}>
               <td><Link to={`/detections/${a.id}`}>#{a.id}</Link></td>
               <td style={{ fontFamily: "monospace" }}>{a.src_ip}</td>
               <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
