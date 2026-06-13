@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import StatsCards from "../components/StatsCards";
@@ -13,26 +14,80 @@ const COLORS = {
   high: "#f85149", medium: "#d29922", low: "#3fb950",
 };
 
+const REFRESH_SECS = 30;
+
 const fmt = (d) =>
   d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+const relTime = (iso) => {
+  if (!iso) return "—";
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1)  return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+};
+
+/* ── Countdown ring ──────────────────────────────────────────── */
+const CountdownRing = ({ value, max }) => {
+  const r      = 10;
+  const circ   = 2 * Math.PI * r;
+  const offset = circ * (1 - value / max);
+  return (
+    <div className="refresh-ring">
+      <svg width="26" height="26" viewBox="0 0 26 26">
+        <circle cx="13" cy="13" r={r} className="ring-track" />
+        <circle
+          cx="13" cy="13" r={r}
+          className="ring-fill"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform="rotate(-90 13 13)"
+        />
+      </svg>
+      <span>Refresh in {value}s</span>
+    </div>
+  );
+};
+
+/* ── Mini risk bar ────────────────────────────────────────────── */
+const RiskMiniBar = ({ high, medium, low, total }) => {
+  const pct = (n) => total > 0 ? `${((n / total) * 100).toFixed(0)}%` : "0%";
+  return (
+    <div className="risk-mini-bar">
+      <div style={{ width: pct(high),   background: "var(--danger)"  }} />
+      <div style={{ width: pct(medium), background: "var(--warning)" }} />
+      <div style={{ width: pct(low),    background: "var(--success)" }} />
+    </div>
+  );
+};
+
 const Dashboard = () => {
-  const [stats,   setStats]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [msg,     setMsg]     = useState("");
-  const [now,     setNow]     = useState(new Date());
+  const [stats,     setStats]     = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [running,   setRunning]   = useState(false);
+  const [msg,       setMsg]       = useState("");
+  const [now,       setNow]       = useState(new Date());
+  const [timeline,  setTimeline]  = useState([]);
+  const [offenders, setOffenders] = useState([]);
+  const [countdown, setCountdown] = useState(REFRESH_SECS);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await statsApi.get();
-      setStats(res.data);
-    } catch (_) {}
-    finally { setLoading(false); }
+    try { const res = await statsApi.get(); setStats(res.data); }
+    catch (_) {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadTimeline  = useCallback(() =>
+    statsApi.timeline(30).then(r => setTimeline(r.data)).catch(() => {}), []);
+
+  const loadOffenders = useCallback(() =>
+    statsApi.topOffenders(10).then(r => setOffenders(r.data)).catch(() => {}), []);
+
+  useEffect(() => { load(); },         [load]);
+  useEffect(() => { loadTimeline(); },  [loadTimeline]);
+  useEffect(() => { loadOffenders(); }, [loadOffenders]);
 
   /* live clock */
   useEffect(() => {
@@ -40,12 +95,29 @@ const Dashboard = () => {
     return () => clearInterval(t);
   }, []);
 
+  /* auto-refresh countdown */
+  useEffect(() => {
+    const t = setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) {
+          load();
+          loadTimeline();
+          loadOffenders();
+          return REFRESH_SECS;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [load, loadTimeline, loadOffenders]);
+
   const runDetection = async () => {
     setRunning(true); setMsg("");
     try {
       const r = await detectionsApi.runDetection();
       setMsg(`Detection complete — ${r.data.message}`);
-      load();
+      load(); loadTimeline(); loadOffenders();
+      setCountdown(REFRESH_SECS);
     } catch (e) {
       setMsg(e.response?.data?.error || "Detection failed");
     } finally { setRunning(false); }
@@ -75,10 +147,8 @@ const Dashboard = () => {
         <div className="dash-bg-orb dash-bg-orb--3" />
       </div>
 
-      {/* ── All content above background ──────────────────────────────── */}
       <div className="dash-content">
 
-        {/* activity pulse line */}
         <div className="activity-bar"><div className="activity-bar-fill" /></div>
 
         {/* header */}
@@ -95,6 +165,7 @@ const Dashboard = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <CountdownRing value={countdown} max={REFRESH_SECS} />
             {isAdmin() && (
               <button
                 className={`btn btn-primary${running ? "" : " btn-run-idle"}`}
@@ -138,7 +209,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* stats */}
         <StatsCards stats={stats} loading={loading} />
 
         {/* charts */}
@@ -206,18 +276,108 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* timeline */}
+        <div className="card" style={{ marginTop: 20 }}>
+          <div className="section-hd">
+            <div className="section-title">Detection Timeline</div>
+            <span className="section-badge">Last 30 days</span>
+          </div>
+          <div className="chart-wrap">
+            <div className="chart-scan" style={{ animationDelay: "2s" }} />
+            {timeline.length > 0 ? (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={timeline} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="tlGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#58a6ff" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#58a6ff" stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="day" tick={{ fill: "#8b949e", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(d) => d.slice(5)} />
+                  <YAxis tick={{ fill: "#8b949e", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, color: "#e6edf3" }}
+                    labelFormatter={(d) => `Date: ${d}`}
+                    formatter={(v) => [v, "Anomalies"]}
+                    cursor={{ stroke: "rgba(88,166,255,.3)", strokeWidth: 1 }}
+                  />
+                  <Area type="monotone" dataKey="count" stroke="#58a6ff" strokeWidth={2} fill="url(#tlGrad)" dot={false} activeDot={{ r: 4, fill: "#58a6ff" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="empty" style={{ padding: "40px 0" }}>
+                <div className="icon">📈</div>
+                <p>No timeline data yet — run a detection first</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* top offenders */}
+        <div className="card" style={{ marginTop: 20 }}>
+          <div className="section-hd">
+            <div className="section-title">Top Offenders</div>
+            <span className="section-badge">{offenders.length} devices</span>
+          </div>
+          {offenders.length === 0 ? (
+            <div className="empty" style={{ padding: "32px 0" }}>
+              <div className="icon">🖥️</div><p>No detections yet</p>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Source IP</th>
+                    <th>Total</th>
+                    <th>Risk Breakdown</th>
+                    <th>Open</th>
+                    <th>Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offenders.map((o, i) => (
+                    <tr key={o.src_ip} className={o.high_count > 0 ? "row-high" : ""}>
+                      <td style={{ color: "var(--text2)", fontSize: 12 }}>{i + 1}</td>
+                      <td style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600 }}>{o.src_ip}</td>
+                      <td style={{ fontWeight: 700, color: "var(--accent)" }}>{o.total}</td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <RiskMiniBar high={o.high_count} medium={o.medium_count} low={o.low_count} total={o.total} />
+                          <span style={{ fontSize: 11, color: "var(--text2)", whiteSpace: "nowrap" }}>
+                            <span style={{ color: "var(--danger)" }}>{o.high_count}H</span>
+                            {" · "}
+                            <span style={{ color: "var(--warning)" }}>{o.medium_count}M</span>
+                            {" · "}
+                            <span style={{ color: "var(--success)" }}>{o.low_count}L</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${o.open_count > 0 ? "badge-open" : "badge-resolved"}`}>
+                          {o.open_count}
+                        </span>
+                      </td>
+                      <td style={{ color: "var(--text2)", fontSize: 12 }}>{relTime(o.last_seen)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* recent alerts */}
         <div className="card" style={{ marginTop: 20 }}>
           <div className="section-hd">
             <div className="section-title">Recent Alerts</div>
-            <span className="section-badge">
-              {stats?.recent_alerts?.length ?? 0} entries
-            </span>
+            <span className="section-badge">{stats?.recent_alerts?.length ?? 0} entries</span>
           </div>
           <AlertPanel alerts={stats?.recent_alerts || []} loading={loading} highGlow />
         </div>
 
-      </div>{/* end dash-content */}
+      </div>
     </div>
   );
 };

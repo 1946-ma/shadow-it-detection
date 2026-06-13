@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import RiskBadge from "../components/RiskBadge";
 import TypeBadge from "../components/TypeBadge";
 import { detectionsApi } from "../utils/api";
@@ -7,12 +7,16 @@ import { detectionsApi } from "../utils/api";
 const fmt = (iso) => iso ? new Date(iso).toLocaleString() : "—";
 
 const Detections = () => {
+  const location = useLocation();
+  const initRisk = new URLSearchParams(location.search).get("risk") || "";
+
   const [detections, setDetections] = useState([]);
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [loading,    setLoading]    = useState(true);
+  const [exporting,  setExporting]  = useState(false);
 
-  const [filters, setFilters] = useState({ type: "", risk: "", date_from: "", date_to: "" });
+  const [filters, setFilters] = useState({ type: "", risk: initRisk, date_from: "", date_to: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,6 +37,24 @@ const Detections = () => {
 
   const applyFilters = (e) => { e.preventDefault(); setPage(1); load(); };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (filters.type)      params.type      = filters.type;
+      if (filters.risk)      params.risk      = filters.risk;
+      if (filters.date_from) params.date_from = filters.date_from;
+      if (filters.date_to)   params.date_to   = filters.date_to;
+      const res = await detectionsApi.export(params);
+      const url = URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+      const a   = document.createElement("a");
+      a.href     = url;
+      a.download = "detections.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (_) {} finally { setExporting(false); }
+  };
+
   const totalPages = Math.ceil(total / 20);
 
   return (
@@ -42,6 +64,9 @@ const Detections = () => {
           <div className="page-title">Detections</div>
           <div className="page-sub">{total.toLocaleString()} total anomalies logged</div>
         </div>
+        <button className="btn btn-ghost" onClick={handleExport} disabled={exporting || total === 0}>
+          {exporting ? "Exporting…" : "↓ Export CSV"}
+        </button>
       </div>
 
       {/* Filters */}

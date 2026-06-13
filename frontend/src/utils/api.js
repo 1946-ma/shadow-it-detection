@@ -32,10 +32,18 @@ export const detectionsApi = {
   get:          (id)     => api.get(`/api/detections/${id}`),
   resolve:      (id)     => api.patch(`/api/detections/${id}/resolve`),
   runDetection: ()       => api.post("/api/run-detection"),
+  export:       (params) => api.get("/api/detections/export",      { params, responseType: "blob" }),
 };
 
 export const statsApi = {
-  get: () => api.get("/api/stats"),
+  get:          ()              => api.get("/api/stats"),
+  timeline:     (days = 30)     => api.get("/api/stats/timeline",      { params: { days } }),
+  alerts:       ()              => api.get("/api/stats/alerts"),
+  topOffenders: (limit = 10)    => api.get("/api/stats/top-offenders", { params: { limit } }),
+};
+
+export const metricsApi = {
+  get: () => api.get("/api/metrics"),
 };
 
 export const auditApi = {

@@ -20,11 +20,13 @@ def create_app() -> Flask:
     from backend.routes.detections import detections_bp
     from backend.routes.stats      import stats_bp
     from backend.routes.audit      import audit_bp
+    from backend.routes.metrics    import metrics_bp
 
     app.register_blueprint(auth_bp,       url_prefix="/api/auth")
     app.register_blueprint(detections_bp, url_prefix="/api/detections")
     app.register_blueprint(stats_bp,      url_prefix="/api/stats")
     app.register_blueprint(audit_bp,      url_prefix="/api/audit-logs")
+    app.register_blueprint(metrics_bp,    url_prefix="/api/metrics")
 
     # ── POST /api/run-detection  (admin only) ──────────────────────────────────
     from backend.middleware.jwt_auth import token_required
