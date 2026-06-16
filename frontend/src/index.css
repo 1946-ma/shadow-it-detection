@@ -64,15 +64,19 @@ a:hover { text-decoration: underline; }
 .navbar-brand {
   font-size: 16px; font-weight: 700; margin-right: 24px;
   display: flex; align-items: center; gap: 8px;
+  color: var(--accent);
+  animation: gradientShift 4s ease infinite;
+  text-decoration: none;
+}
+.navbar-brand:hover { text-decoration: none; }
+.navbar-brand .brand-text {
   background: linear-gradient(90deg, var(--accent), var(--purple), var(--accent));
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: gradientShift 4s ease infinite;
-  text-decoration: none;
 }
-.navbar-brand:hover { text-decoration: none; }
 .navbar-links { display: flex; gap: 4px; flex: 1; }
 .nav-link {
   color: var(--text2); padding: 6px 12px; border-radius: var(--radius);
@@ -99,6 +103,7 @@ a:hover { text-decoration: underline; }
   background: var(--bg3); border: 1px solid var(--border);
   border-radius: 20px; padding: 4px 12px; font-size: 13px; color: var(--text2);
   transition: border-color .2s, color .2s;
+  display: inline-flex; align-items: center; gap: 5px;
 }
 .user-chip:hover { border-color: rgba(88,166,255,.3); color: var(--text); }
 

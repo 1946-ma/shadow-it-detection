@@ -1,3 +1,4 @@
+import { BellOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import RiskBadge from "./RiskBadge";
 import TypeBadge from "./TypeBadge";
@@ -7,7 +8,7 @@ const fmt = (iso) =>
 
 const AlertPanel = ({ alerts = [], loading }) => {
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
-  if (!alerts.length) return <div className="empty"><div className="icon">📭</div><p>No recent alerts</p></div>;
+  if (!alerts.length) return <div className="empty"><div className="icon"><BellOff size={32} /></div><p>No recent alerts</p></div>;
 
   return (
     <div className="table-wrap">

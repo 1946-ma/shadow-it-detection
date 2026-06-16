@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { CheckCircle, XCircle, Lock, RefreshCw } from "lucide-react";
 import AuditLogTable from "../components/AuditLogTable";
 import { auditApi } from "../utils/api";
 
@@ -9,7 +10,7 @@ const IntegrityBadge = ({ result }) => {
   if (result.status === "ok") {
     return (
       <div className="integrity-badge integrity-badge--ok">
-        <span className="integrity-icon">✓</span>
+        <span className="integrity-icon"><CheckCircle size={20} /></span>
         <div>
           <div className="integrity-title">Chain Intact</div>
           <div className="integrity-sub">
@@ -23,7 +24,7 @@ const IntegrityBadge = ({ result }) => {
 
   return (
     <div className="integrity-badge integrity-badge--fail">
-      <span className="integrity-icon">✗</span>
+      <span className="integrity-icon"><XCircle size={20} /></span>
       <div>
         <div className="integrity-title">Chain Compromised</div>
         <div className="integrity-sub">
@@ -81,9 +82,11 @@ const AuditLog = () => {
             disabled={verifying}
             title="Verify SHA-256 hash chain integrity"
           >
-            {verifying ? "Verifying…" : "🔐 Verify Integrity"}
+            <Lock size={14} /> {verifying ? "Verifying…" : "Verify Integrity"}
           </button>
-          <button className="btn btn-ghost" onClick={load} disabled={loading}>↻ Refresh</button>
+          <button className="btn btn-ghost" onClick={load} disabled={loading}>
+            <RefreshCw size={14} /> Refresh
+          </button>
         </div>
       </div>
 
@@ -99,11 +102,11 @@ const AuditLog = () => {
         {totalPages > 1 && (
           <div className="pagination">
             <button className="btn btn-ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-              ← Prev
+              Prev
             </button>
             <span>Page {page} of {totalPages}</span>
             <button className="btn btn-ghost" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-              Next →
+              Next
             </button>
           </div>
         )}

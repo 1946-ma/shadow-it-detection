@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Search, Download } from "lucide-react";
 import RiskBadge from "../components/RiskBadge";
 import TypeBadge from "../components/TypeBadge";
 import { detectionsApi } from "../utils/api";
@@ -65,7 +66,7 @@ const Detections = () => {
           <div className="page-sub">{total.toLocaleString()} total anomalies logged</div>
         </div>
         <button className="btn btn-ghost" onClick={handleExport} disabled={exporting || total === 0}>
-          {exporting ? "Exporting…" : "↓ Export CSV"}
+          <Download size={14} /> {exporting ? "Exporting…" : "Export CSV"}
         </button>
       </div>
 
@@ -113,7 +114,7 @@ const Detections = () => {
         {loading ? (
           <div className="spinner-wrap"><div className="spinner" /></div>
         ) : detections.length === 0 ? (
-          <div className="empty"><div className="icon">🔍</div><p>No detections found</p></div>
+          <div className="empty"><div className="icon"><Search size={32} /></div><p>No detections found</p></div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -160,11 +161,11 @@ const Detections = () => {
         {totalPages > 1 && (
           <div className="pagination">
             <button className="btn btn-ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-              ← Prev
+              Prev
             </button>
             <span>Page {page} of {totalPages}</span>
             <button className="btn btn-ghost" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-              Next →
+              Next
             </button>
           </div>
         )}

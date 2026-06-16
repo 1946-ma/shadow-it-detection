@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
+import { ShieldCheck, Bell, User } from "lucide-react";
 import { getUser, clearAuth } from "../utils/auth";
 import { authApi, statsApi } from "../utils/api";
 
@@ -26,7 +27,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <span>🛡️</span> Shadow IT
+        <ShieldCheck size={18} /> <span className="brand-text">Shadow IT</span>
       </div>
       <div className="navbar-links">
         <NavLink to="/dashboard"     className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Dashboard</NavLink>
@@ -38,12 +39,12 @@ const Navbar = () => {
       </div>
       <div className="navbar-right">
         <Link to="/detections?risk=high" className="bell-wrap" title="Unresolved high-risk alerts">
-          🔔
+          <Bell size={16} />
           {alertCount > 0 && (
             <span className="bell-badge">{alertCount > 99 ? "99+" : alertCount}</span>
           )}
         </Link>
-        <span className="user-chip">👤 {user?.username} · {user?.role}</span>
+        <span className="user-chip"><User size={13} /> {user?.username} · {user?.role}</span>
         <button className="btn btn-ghost" style={{ fontSize: 12, padding: "5px 12px" }} onClick={handleLogout}>
           Sign out
         </button>

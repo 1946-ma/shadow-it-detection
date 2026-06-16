@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Check } from "lucide-react";
 import DeviceProfile from "../components/DeviceProfile";
 import RiskBadge from "../components/RiskBadge";
 import TypeBadge from "../components/TypeBadge";
@@ -46,7 +47,9 @@ const DetectionDetail = () => {
     <div className="page">
       <div className="page-header">
         <div>
-          <Link to="/detections" style={{ color: "var(--text2)", fontSize: 13 }}>← All Detections</Link>
+          <Link to="/detections" style={{ color: "var(--text2)", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <ArrowLeft size={13} /> All Detections
+          </Link>
           <div className="page-title" style={{ marginTop: 4 }}>Detection #{det.id}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <TypeBadge type={det.shadow_it_type} />
@@ -60,7 +63,7 @@ const DetectionDetail = () => {
           <span style={{ color: "var(--text2)", fontSize: 12 }}>Detected: {fmt(det.detected_at)}</span>
           {isAdmin() && !det.is_resolved && (
             <button className="btn btn-success" onClick={handleResolve} disabled={resolving}>
-              {resolving ? "Resolving…" : "✓ Mark Resolved"}
+              <Check size={14} /> {resolving ? "Resolving…" : "Mark Resolved"}
             </button>
           )}
         </div>
