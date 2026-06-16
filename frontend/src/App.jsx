@@ -7,6 +7,7 @@ import Detections      from "./pages/Detections";
 import DetectionDetail from "./pages/DetectionDetail";
 import AuditLog        from "./pages/AuditLog";
 import ModelMetrics    from "./pages/ModelMetrics";
+import LiveScan        from "./pages/LiveScan";
 
 const Shell = ({ children }) => (
   <div className="app-shell">
@@ -28,6 +29,7 @@ const App = () => (
       <Route path="/detections/:id" element={<Private><Shell><DetectionDetail /></Shell></Private>} />
       <Route path="/audit-logs"     element={<Private><Shell><AuditLog /></Shell></Private>} />
       <Route path="/model-metrics"  element={<Private><Shell><ModelMetrics /></Shell></Private>} />
+      <Route path="/live-scan"      element={<Private><Shell><LiveScan /></Shell></Private>} />
       <Route path="*"               element={<Navigate to="/dashboard" replace />} />
     </Routes>
   </BrowserRouter>
