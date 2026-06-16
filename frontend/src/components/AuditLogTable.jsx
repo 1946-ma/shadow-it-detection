@@ -1,9 +1,11 @@
+import { ClipboardList } from "lucide-react";
+
 const fmt = (iso) => iso ? new Date(iso).toLocaleString() : "—";
 
 const AuditLogTable = ({ logs = [], loading }) => {
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
   if (!logs.length) return (
-    <div className="empty"><div className="icon">📋</div><p>No audit entries found</p></div>
+    <div className="empty"><div className="icon"><ClipboardList size={32} /></div><p>No audit entries found</p></div>
   );
 
   return (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 import { authApi } from "../utils/api";
 import { setAuth, isAuthenticated } from "../utils/auth";
 
@@ -38,7 +39,7 @@ const Login = () => {
 
       <div className="login-card">
         <div className="login-logo">
-          <span className="icon">🛡️</span>
+          <span className="icon"><ShieldCheck size={40} /></span>
           <h1>Shadow IT Detection</h1>
           <p>AI-Driven Security Framework · UMaT</p>
         </div>

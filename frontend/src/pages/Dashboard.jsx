@@ -4,6 +4,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { BarChart2, PieChart as PieChartIcon, TrendingUp, Monitor, Play } from "lucide-react";
 import StatsCards from "../components/StatsCards";
 import AlertPanel from "../components/AlertPanel";
 import { statsApi, detectionsApi } from "../utils/api";
@@ -172,7 +173,7 @@ const Dashboard = () => {
                 onClick={runDetection}
                 disabled={running}
               >
-                {running ? "Scanning…" : "▶ Run Detection"}
+                {running ? "Scanning…" : <><Play size={13} /> Run Detection</>}
               </button>
             )}
           </div>
@@ -236,7 +237,7 @@ const Dashboard = () => {
                 </ResponsiveContainer>
               ) : (
                 <div className="empty" style={{ padding: "40px 0" }}>
-                  <div className="icon">📊</div><p>No data yet</p>
+                  <div className="icon"><BarChart2 size={32} /></div><p>No data yet</p>
                 </div>
               )}
             </div>
@@ -269,7 +270,7 @@ const Dashboard = () => {
                 </ResponsiveContainer>
               ) : (
                 <div className="empty" style={{ padding: "40px 0" }}>
-                  <div className="icon">🥧</div><p>No data yet</p>
+                  <div className="icon"><PieChartIcon size={32} /></div><p>No data yet</p>
                 </div>
               )}
             </div>
@@ -306,7 +307,7 @@ const Dashboard = () => {
               </ResponsiveContainer>
             ) : (
               <div className="empty" style={{ padding: "40px 0" }}>
-                <div className="icon">📈</div>
+                <div className="icon"><TrendingUp size={32} /></div>
                 <p>No timeline data yet — run a detection first</p>
               </div>
             )}
@@ -321,7 +322,7 @@ const Dashboard = () => {
           </div>
           {offenders.length === 0 ? (
             <div className="empty" style={{ padding: "32px 0" }}>
-              <div className="icon">🖥️</div><p>No detections yet</p>
+              <div className="icon"><Monitor size={32} /></div><p>No detections yet</p>
             </div>
           ) : (
             <div className="table-wrap">

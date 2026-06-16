@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FlaskConical, CheckCircle, XCircle } from "lucide-react";
 import RiskBadge from "../components/RiskBadge";
 import TypeBadge from "../components/TypeBadge";
 import { metricsApi } from "../utils/api";
@@ -172,7 +173,7 @@ const ModelMetrics = () => {
             </div>
             {scenarios.length === 0 ? (
               <div className="empty">
-                <div className="icon">🧪</div>
+                <div className="icon"><FlaskConical size={32} /></div>
                 <p>No scenario data — run ml/evaluate.py first</p>
               </div>
             ) : (
@@ -202,7 +203,9 @@ const ModelMetrics = () => {
                         <td style={{ fontFamily: "monospace", color: "var(--text2)" }}>{sc.predicted}</td>
                         <td>
                           <span className={`badge ${sc.correct ? "badge-resolved" : "badge-high"}`}>
-                            {sc.correct ? "✓ Pass" : "✗ Fail"}
+                            {sc.correct
+                              ? <><CheckCircle size={13} /> Pass</>
+                              : <><XCircle size={13} /> Fail</>}
                           </span>
                         </td>
                         <td>{sc.shadow_it_type && sc.shadow_it_type !== "—"
