@@ -47,7 +47,8 @@ export const metricsApi = {
 };
 
 export const auditApi = {
-  list: (params) => api.get("/api/audit-logs", { params }),
+  list:   (params) => api.get("/api/audit-logs",        { params }),
+  verify: ()       => api.get("/api/audit-logs/verify"),
 };
 
 export default api;
