@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
-import { ShieldCheck, Bell, User } from "lucide-react";
+import { ShieldCheck, Bell, User, Wifi } from "lucide-react";
 import { getUser, clearAuth } from "../utils/auth";
 import { authApi, statsApi } from "../utils/api";
 
@@ -33,9 +33,12 @@ const Navbar = () => {
         <NavLink to="/dashboard"     className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Dashboard</NavLink>
         <NavLink to="/detections"    className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Detections</NavLink>
         <NavLink to="/model-metrics" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Model Metrics</NavLink>
-        {user?.role === "admin" && (
+        {user?.role === "admin" && (<>
+          <NavLink to="/live-scan"  className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            <Wifi size={13} /> Live Scan
+          </NavLink>
           <NavLink to="/audit-logs" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Audit Log</NavLink>
-        )}
+        </>)}
       </div>
       <div className="navbar-right">
         <Link to="/detections?risk=high" className="bell-wrap" title="Unresolved high-risk alerts">
