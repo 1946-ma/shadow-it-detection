@@ -82,6 +82,18 @@ def status():
     return jsonify(col.status())
 
 
+# ── POST /api/scan/flush ──────────────────────────────────────────────────────
+@scan_bp.route("/flush", methods=["POST"])
+@token_required
+@admin_required
+def flush():
+    col, err = _col()
+    if err:
+        return jsonify({"error": err}), 503
+    flushed = col.flush_all()
+    return jsonify({"message": f"Force-flushed {flushed} flows", "flushed": flushed, "status": col.status()})
+
+
 # ── GET /api/scan/detections ───────────────────────────────────────────────────
 @scan_bp.route("/detections", methods=["GET"])
 @token_required

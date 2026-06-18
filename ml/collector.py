@@ -143,7 +143,7 @@ class NetworkCollector:
       collector.pop_detections() → returns and clears pending anomalies
     """
 
-    def __init__(self, flow_timeout: int = 30, flush_interval: int = 10):
+    def __init__(self, flow_timeout: int = 15, flush_interval: int = 5):
         self.flow_timeout   = flow_timeout
         self.flush_interval = flush_interval
 
@@ -289,6 +289,27 @@ class NetworkCollector:
             "uptime_s":         uptime,
             "errors":           self._errors[-5:],
         }
+
+    def flush_all(self):
+        """Force-analyse every active flow immediately, ignoring the idle timeout."""
+        from ml.model import detect
+        with self._lock:
+            to_flush = list(self._flows.values())
+            self._flows = {}
+
+        if not to_flush:
+            return 0
+
+        records = [f.to_feature_dict() for f in to_flush]
+        self.flows_analysed += len(records)
+        try:
+            results, _ = detect(records)
+            if results:
+                with self._lock:
+                    self._detections.extend(results)
+        except Exception as exc:
+            self._errors.append(str(exc))
+        return len(records)
 
     def pop_detections(self) -> list:
         with self._lock:

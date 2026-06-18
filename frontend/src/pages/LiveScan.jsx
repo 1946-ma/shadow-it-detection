@@ -6,8 +6,8 @@ import { scanApi } from "../utils/api";
 
 const POLL_MS = 5000;
 
-const StatBox = ({ label, value, color }) => (
-  <div className="scan-stat">
+const StatBox = ({ label, value, color, style }) => (
+  <div className="scan-stat" style={style}>
     <div className="scan-stat-val" style={{ color }}>{value}</div>
     <div className="scan-stat-label">{label}</div>
   </div>
@@ -82,11 +82,22 @@ const LiveScan = () => {
     } finally { setLoading(false); }
   };
 
+  const handleFlush = async () => {
+    setLoading(true); setError("");
+    try {
+      await scanApi.flush();
+      await poll();
+    } catch (e) {
+      setError(e.response?.data?.error || "Flush failed");
+    } finally { setLoading(false); }
+  };
+
   const fmtUptime = (s) => {
     if (!s) return "0s";
-    if (s < 60)   return `${s}s`;
-    if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
-    return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+    const sec = Math.floor(s);
+    if (sec < 60)   return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+    return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
   };
 
   return (
@@ -106,6 +117,12 @@ const LiveScan = () => {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {status.running && (
+            <button className="btn btn-ghost" onClick={handleFlush} disabled={loading}
+              title="Force-analyse all active flows right now">
+              <RefreshCw size={14} /> Analyze Now
+            </button>
+          )}
           {!status.running ? (
             <button className="btn btn-primary" onClick={handleStart} disabled={loading}>
               <Play size={14} /> {loading ? "Starting…" : "Start Scan"}
@@ -124,6 +141,11 @@ const LiveScan = () => {
         <div className="alert alert-error">
           Capture error: {status.errors[status.errors.length - 1]}
           {status.errors[0]?.includes("permission") && " — run Flask as Administrator"}
+        </div>
+      )}
+      {status.running && status.packets_seen === 0 && (
+        <div className="alert alert-error">
+          No packets captured yet — try a different interface from the dropdown, then stop and restart the scan.
         </div>
       )}
 
@@ -162,7 +184,7 @@ const LiveScan = () => {
             <StatBox label="Flows Analysed" value={status.flows_analysed ?? 0} color="var(--purple)"  />
             <StatBox label="Active Flows"   value={status.active_flows   ?? 0} color="var(--warning)" />
             <StatBox label="Anomalies Found" value={status.detections_found ?? detections.length} color="var(--danger)"  />
-            <StatBox label="Uptime"          value={fmtUptime(status.uptime_s)} color="var(--success)" />
+            <StatBox label="Uptime"          value={fmtUptime(status.uptime_s)} color="var(--success)" style={{ minWidth: 120 }} />
           </div>
         </div>
       </div>
