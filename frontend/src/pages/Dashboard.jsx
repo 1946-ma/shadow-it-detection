@@ -4,10 +4,10 @@ import {
   AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { BarChart2, PieChart as PieChartIcon, TrendingUp, Monitor, Play } from "lucide-react";
+import { BarChart2, PieChart as PieChartIcon, TrendingUp, Monitor, Play, FileText } from "lucide-react";
 import StatsCards from "../components/StatsCards";
 import AlertPanel from "../components/AlertPanel";
-import { statsApi, detectionsApi } from "../utils/api";
+import { statsApi, detectionsApi, reportApi } from "../utils/api";
 import { isAdmin } from "../utils/auth";
 
 const COLORS = {
@@ -124,6 +124,22 @@ const Dashboard = () => {
     } finally { setRunning(false); }
   };
 
+  const [reporting, setReporting] = useState(false);
+  const handleReport = async () => {
+    setReporting(true);
+    try {
+      const res = await reportApi.generate();
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a   = document.createElement("a");
+      a.href     = url;
+      a.download = `shadow-it-report-${new Date().toISOString().slice(0,10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMsg("Report generation failed.");
+    } finally { setReporting(false); }
+  };
+
   const byType = stats ? Object.entries(stats.by_type || {}).map(([k, v]) => ({ name: k, value: v })) : [];
   const byRisk = stats ? Object.entries(stats.by_risk || {}).map(([k, v]) => ({ name: k, value: v })) : [];
 
@@ -167,6 +183,11 @@ const Dashboard = () => {
 
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <CountdownRing value={countdown} max={REFRESH_SECS} />
+            {isAdmin() && (
+              <button className="btn btn-ghost" onClick={handleReport} disabled={reporting}>
+                <FileText size={13} /> {reporting ? "Generating…" : "Export Report"}
+              </button>
+            )}
             {isAdmin() && (
               <button
                 className={`btn btn-primary${running ? "" : " btn-run-idle"}`}

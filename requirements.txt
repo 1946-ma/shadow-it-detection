@@ -10,3 +10,4 @@ python-dotenv==1.0.0
 joblib
 Werkzeug==3.0.1
 scapy
+reportlab

@@ -51,6 +51,10 @@ export const auditApi = {
   verify: ()       => api.get("/api/audit-logs/verify"),
 };
 
+export const reportApi = {
+  generate: () => api.get("/api/report/generate", { responseType: "blob" }),
+};
+
 export const scanApi = {
   interfaces: ()      => api.get("/api/scan/interfaces"),
   start:      (iface) => api.post("/api/scan/start", { iface }),
