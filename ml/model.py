@@ -21,14 +21,14 @@ MODEL_PATH = os.path.join(ARTIFACTS, "isolation_forest.pkl")
 
 # ── Risk classification ────────────────────────────────────────────────────────
 def classify_risk(score: float, shadow_type: str) -> str:
-    # IsolationForest scores: more negative = more anomalous.
-    # Thresholds are split into thirds across the typical live-traffic anomaly
-    # range (-0.40 to -0.70) so risk levels are meaningfully distributed.
-    if shadow_type == "mixed":
+    # IsolationForest score_samples() range: ~0 (normal) → ~-0.5 (highly anomalous).
+    # The anomaly space [-0.5, 0] is divided into equal thirds:
+    #   High   : score < -0.33  (bottom third — most isolated / anomalous)
+    #   Medium : score < -0.17  (middle third)
+    #   Low    : score >= -0.17 (top third — least anomalous but still flagged)
+    if score < -0.33:
         return "high"
-    if score < -0.58:
-        return "high"
-    if score < -0.48:
+    if score < -0.17:
         return "medium"
     return "low"
 

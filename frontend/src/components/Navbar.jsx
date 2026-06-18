@@ -27,7 +27,8 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <ShieldCheck size={18} /> <span className="brand-text">Shadow IT</span>
+        <ShieldCheck size={17} />
+        <span className="brand-text">Shadow IT Detection</span>
       </div>
       <div className="navbar-links">
         <NavLink to="/dashboard"     className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>Dashboard</NavLink>

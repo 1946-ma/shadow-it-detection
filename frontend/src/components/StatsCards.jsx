@@ -19,10 +19,10 @@ const useCountUp = (target, duration = 950) => {
   return target == null ? "—" : count;
 };
 
-const Card = ({ label, value, color, glow }) => {
+const Card = ({ label, value, color, variant }) => {
   const display = useCountUp(value);
   return (
-    <div className={`stat-card stat-card--${glow}`}>
+    <div className={`stat-card${variant ? ` stat-card--${variant}` : ""}`}>
       <div className="stat-value" style={{ color }}>{display}</div>
       <div className="stat-label">{label}</div>
     </div>
@@ -47,12 +47,12 @@ const StatsCards = ({ stats, loading }) => {
 
   return (
     <div className="stats-grid">
-      <Card label="Total Detections"   value={stats.total_detections} color="var(--accent)"   glow="accent"  />
-      <Card label="Unresolved"         value={stats.unresolved}       color="var(--danger)"   glow="danger"  />
-      <Card label="Resolved"           value={stats.resolved}         color="var(--success)"  glow="success" />
-      <Card label="Software Shadow IT" value={bt.software ?? 0}       color="var(--accent)"   glow="accent"  />
-      <Card label="Hardware Shadow IT" value={bt.hardware ?? 0}       color="var(--purple)"   glow="purple"  />
-      <Card label="High Risk"          value={br.high ?? 0}           color="var(--danger)"   glow="danger"  />
+      <Card label="Total Detections"   value={stats.total_detections} color="var(--accent)"  variant="accent"  />
+      <Card label="Unresolved"         value={stats.unresolved}       color="var(--danger)"  variant="danger"  />
+      <Card label="Resolved"           value={stats.resolved}         color="var(--success)" variant="success" />
+      <Card label="Software Shadow IT" value={bt.software ?? 0}       color="var(--accent)"  variant="accent"  />
+      <Card label="Hardware Shadow IT" value={bt.hardware ?? 0}       color="var(--purple)"  variant="purple"  />
+      <Card label="High Risk"          value={br.high ?? 0}           color="var(--danger)"  variant="danger"  />
     </div>
   );
 };

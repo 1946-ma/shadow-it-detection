@@ -31,17 +31,11 @@ const Login = () => {
 
   return (
     <div className="login-wrap">
-      <div className="login-bg">
-        <div className="login-bg-gradient" />
-        <div className="login-bg-grid" />
-        <div className="login-bg-scan" />
-      </div>
-
       <div className="login-card">
         <div className="login-logo">
-          <span className="icon"><ShieldCheck size={40} /></span>
+          <span className="icon"><ShieldCheck size={36} /></span>
           <h1>Shadow IT Detection</h1>
-          <p>AI-Driven Security Framework · UMaT</p>
+          <p>AI-Driven Security Framework &mdash; UMaT</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
