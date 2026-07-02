@@ -320,13 +320,28 @@ class NetworkCollector:
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def list_interfaces() -> list[str]:
+def list_interfaces() -> list[dict]:
+    """
+    Returns interfaces with human-readable descriptions instead of raw
+    `\\Device\\NPF_{GUID}` paths, sorted so real, routable adapters (ones
+    with a non-link-local IPv4) come first — pseudo/virtual adapters like
+    "WAN Miniport (Network Monitor)" or TAP adapters (which never carry
+    real traffic) are pushed to the bottom instead of defaulting first.
+    `device` is the raw path Scapy's sniff(iface=...) needs.
+    """
     if not SCAPY_AVAILABLE:
         return []
     try:
-        return get_if_list()
+        result = []
+        for device, iface in conf.ifaces.items():
+            description = getattr(iface, "description", "") or device
+            ips4 = list(getattr(iface, "ips", {}).get(4, []))
+            ip = next((a for a in ips4 if a and not a.startswith("169.254.")), None)
+            result.append({"device": device, "description": description, "ip": ip})
+        result.sort(key=lambda r: (r["ip"] is None, r["description"]))
+        return result
     except Exception:
-        return []
+        return get_if_list()
 
 
 # ── Module-level singleton ─────────────────────────────────────────────────────

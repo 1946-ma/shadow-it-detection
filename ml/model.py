@@ -20,15 +20,24 @@ MODEL_PATH = os.path.join(ARTIFACTS, "isolation_forest.pkl")
 
 
 # ── Risk classification ────────────────────────────────────────────────────────
+# Thresholds are empirical tertiles of this model's actual anomaly_score
+# distribution on flagged (pred == -1) records — NOT the theoretical
+# score_samples() range of [-0.5, 0]. In practice, with contamination=0.27,
+# every flagged record already scores well below -0.33, so a fixed -0.33/-0.17
+# split put 100% of detections in "high" (medium/low were unreachable).
+# Measured from 10,253 real detections: p33=-0.5033, p66=-0.4544, range
+# [-0.7903, -0.4212]. Recalibrate these two constants (e.g. via
+# `SELECT percentile_cont(0.33/0.66) WITHIN GROUP (ORDER BY anomaly_score)
+# FROM detections`) if the model is retrained and the score range shifts.
+RISK_THRESHOLD_HIGH   = -0.50   # score < -0.50                     → high   (bottom third)
+RISK_THRESHOLD_MEDIUM = -0.45   # -0.50 <= score < -0.45           → medium (middle third)
+                                 # score >= -0.45                   → low    (top third)
+
+
 def classify_risk(score: float, shadow_type: str) -> str:
-    # IsolationForest score_samples() range: ~0 (normal) → ~-0.5 (highly anomalous).
-    # The anomaly space [-0.5, 0] is divided into equal thirds:
-    #   High   : score < -0.33  (bottom third — most isolated / anomalous)
-    #   Medium : score < -0.17  (middle third)
-    #   Low    : score >= -0.17 (top third — least anomalous but still flagged)
-    if score < -0.33:
+    if score < RISK_THRESHOLD_HIGH:
         return "high"
-    if score < -0.17:
+    if score < RISK_THRESHOLD_MEDIUM:
         return "medium"
     return "low"
 
