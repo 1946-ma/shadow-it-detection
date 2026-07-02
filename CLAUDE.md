@@ -6,7 +6,7 @@
 ---
 
 ## Project Summary
-An AI-Driven Shadow IT Detection Framework. Detects unauthorized devices and software on a network using an IsolationForest ML model trained on the CICIDS2017 dataset. Includes live packet capture, a full REST API, a React dashboard, PDF report generation, and tamper-proof audit logs.
+An AI-Driven Shadow IT Detection Framework. Detects unauthorized devices and software on a network using an IsolationForest ML model trained on the CICIDS2017 dataset. Includes live packet capture, a full REST API, a Next.js dashboard, PDF report generation, and tamper-proof audit logs.
 
 ---
 
@@ -26,9 +26,9 @@ An AI-Driven Shadow IT Detection Framework. Detects unauthorized devices and sof
 | ML | scikit-learn IsolationForest, pandas, numpy, joblib |
 | Packet Capture | Scapy (requires Npcap on Windows, run Flask as Administrator) |
 | PDF Reports | reportlab (Platypus) |
-| Frontend | React 18, React Router v6, Recharts, lucide-react, axios |
-| Font | Inter (Google Fonts, loaded in index.css) |
-| CSS | Custom dark theme — Tailwind Slate palette (#0f172a bg, #1e293b cards) |
+| Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Recharts, lucide-react, axios, framer-motion, js-cookie |
+| Font | Inter (Google Fonts, `styles/globals.css`) |
+| CSS | Tailwind CSS + custom CSS variables — dark/light glassmorphism theme, `.glass` + `.glow-*` utilities |
 
 ---
 
@@ -103,20 +103,17 @@ python backend/app.py
 ```
 Flask runs on `http://localhost:5000`
 
-### 6. Run React frontend
+### 6. Run Next.js frontend
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev
 ```
-React runs on `http://localhost:3000`
+Next.js runs on `http://localhost:3000` (Flask's CORS whitelist in `backend/app.py` is set to this origin).
 
-### frontend/.env (already committed)
+### frontend/.env.local (gitignored — copy from `.env.local.example`)
 ```env
-HOST=0.0.0.0
-GENERATE_SOURCEMAP=false
-DISABLE_ESLINT_PLUGIN=true
-BROWSER=none
+NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 ---
@@ -153,30 +150,40 @@ shadow-it-detection/
 │   ├── immutability.sql        # Triggers + restricted role + hash chain
 │   ├── seed.py                 # Inserts default admin/viewer users
 │   └── setup.py                # All-in-one DB setup script
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx             # Router — 6 private routes + login
-│   │   ├── index.css           # Full design system (Tailwind Slate palette, Inter)
-│   │   ├── pages/
-│   │   │   ├── Login.jsx
-│   │   │   ├── Dashboard.jsx   # Stats, charts, top offenders, alerts, Run Detection, Export Report
-│   │   │   ├── Detections.jsx  # Filterable table + CSV export + pagination
-│   │   │   ├── DetectionDetail.jsx
-│   │   │   ├── ModelMetrics.jsx # Accuracy/precision/recall/F1, confusion matrix, scenarios
-│   │   │   ├── LiveScan.jsx    # Live packet capture UI
-│   │   │   └── AuditLog.jsx    # Audit log + hash chain verify
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx
-│   │   │   ├── StatsCards.jsx
-│   │   │   ├── AlertPanel.jsx
-│   │   │   ├── RiskBadge.jsx   # Uses lucide-react Circle icon
-│   │   │   ├── TypeBadge.jsx   # Inline SVG icons for software/hardware/mixed
-│   │   │   ├── AuditLogTable.jsx
-│   │   │   └── DeviceProfile.jsx
-│   │   └── utils/
-│   │       ├── api.js          # axios instance + all API calls (authApi, detectionsApi, scanApi, reportApi…)
-│   │       └── auth.js         # JWT helpers: getToken, getUser, isAdmin, setAuth, clearAuth
-│   └── .env
+├── frontend/                   # Next.js 14 App Router + TypeScript (replaced the old CRA app on 2026-07-01)
+│   ├── tailwind.config.ts      # darkMode:'class', glass-bg/glass-border theme colors
+│   ├── postcss.config.js
+│   ├── next.config.js
+│   ├── styles/globals.css      # Full design system: glass/glow, dark+light CSS vars, Inter, badge/integrity classes
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout, dark-mode init script (pre-hydration, avoids flash)
+│   │   ├── providers.tsx       # Per-route dark-mode class effect (no auth session provider — plain JWT)
+│   │   ├── page.tsx            # `/` → redirects to /dashboard or /login based on cookie token
+│   │   ├── login/page.tsx      # Real authApi.login(username, password); no OAuth/signup (backend has neither)
+│   │   ├── privacy/page.tsx, terms/page.tsx   # Static legal pages
+│   │   └── dashboard/
+│   │       ├── layout.tsx      # Auth guard (redirects to /login if no cookie token) + Sidebar/Topbar shell
+│   │       ├── page.tsx        # Overview — statsApi (summary/timeline/topOffenders), admin Run Detection + Export Report
+│   │       ├── alerts/page.tsx # Detections list — real filters/pagination/CSV export/resolve, inline detail slide-over
+│   │       ├── devices/page.tsx       # Device inventory — client-side aggregation of /api/detections by src_ip/src_mac
+│   │       ├── applications/page.tsx  # App/destination inventory — aggregation by dst_domain
+│   │       ├── reports/page.tsx       # Model Performance + Test Scenarios tabs — real /api/metrics, admin PDF export
+│   │       ├── live-scan/page.tsx     # Admin-only — real-time packet capture UI via scanApi
+│   │       ├── audit/page.tsx         # Admin-only — real /api/audit-logs + Verify Integrity (hash chain)
+│   │       ├── settings/page.tsx      # Dark/light theme toggle only (no unbacked settings)
+│   │       └── profile/page.tsx       # Real cookie-derived username/role + sign out
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx     # Nav + role-gated admin items (Live Scan, Audit Trail), collapses to icons (md) / drawer (mobile)
+│   │   │   └── Topbar.tsx      # Dark/light toggle, real high-risk alert bell (statsApi.alerts()), page search, user menu
+│   │   ├── ui/                 # GlassCard, Logo, Badge, AnimatedCounter, RiskMeter, StatusIcon
+│   │   └── LoginBackground.tsx
+│   └── lib/
+│       ├── api.ts              # axios instance + all endpoints (authApi, detectionsApi, statsApi, metricsApi, auditApi, reportApi, scanApi) + apiErrorMessage()
+│       ├── auth.ts             # js-cookie helpers: getToken/getRole/getUsername, setAuthFromLogin, isAdmin, isAuthenticated, clearAuth
+│       ├── aggregate.ts        # fetchAllDetections/groupByDevice/groupByApplication (Devices & Applications pages)
+│       ├── types.ts            # Detection/AuditLog/DashboardSummary/MetricsResponse/ScanStatus etc., matching backend response shapes exactly
+│       └── useIsDark.ts        # Dark-mode hook + Recharts tooltip theming helper
 ├── requirements.txt
 ├── .env                        # DO NOT COMMIT — contains DB credentials
 ├── .env.example                # Template (safe to commit)
@@ -252,13 +259,14 @@ IsolationForest(
 )
 ```
 
-### Risk Classification (standard IsolationForest thirds)
-`score_samples()` returns values in ~[-0.5, 0] for anomalies (more negative = more anomalous):
+### Risk Classification (empirically calibrated thirds)
+**Fixed 2026-07-01:** the old thresholds (-0.33/-0.17) assumed `score_samples()` spans the theoretical [-0.5, 0] range, but on this model's real data flagged records never score above ~-0.42 — so every detection landed in "high" (medium/low were mathematically unreachable). Thresholds are now tertiles of the actual anomaly_score distribution (measured from 10,253 real detections: range [-0.7903, -0.4212], p33=-0.5033, p66=-0.4544):
 ```python
-if score < -0.33:   return "high"    # bottom third — most anomalous
-if score < -0.17:   return "medium"  # middle third
+if score < -0.50:   return "high"    # bottom third — most anomalous
+if score < -0.45:   return "medium"  # middle third
 else:               return "low"     # top third — mildly anomalous
 ```
+Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_THRESHOLD_MEDIUM`) if the model is ever retrained — the score range is specific to this trained `.pkl`. Query: `SELECT percentile_cont(0.33/0.66) WITHIN GROUP (ORDER BY anomaly_score) FROM detections`.
 
 ### Feature Engineering
 20 CICIDS2017 features used. Key ones: Flow Duration, Total Fwd/Bwd Packets, Packet Length Mean/Std/Max, Flow Bytes/s, Flow Packets/s, SYN/FIN/RST/PSH/ACK flag counts, Init Win Fwd/Bwd, Subflow Fwd/Bwd Bytes, Active/Idle Mean.
@@ -274,33 +282,30 @@ else:               return "low"     # top third — mildly anomalous
 
 ## Frontend Design System
 
-**Colors (CSS variables in index.css):**
+**History:** the original CRA frontend (plain CSS, "no glow/no animation") was first reskinned with Tailwind/glassmorphism while staying on CRA. On 2026-07-01 the user replaced the frontend entirely with a downloaded Next.js/TypeScript app whose visual language they preferred — that app's dashboard pages were almost all mock data, so every page was rewired to the real Flask API described above. The framework is now Next.js 14 (App Router) + TypeScript, not CRA.
+
+**Colors (CSS variables in `styles/globals.css`, dark = default, light via `html:not(.dark)`):**
 ```css
---bg:      #0f172a   /* slate-900 — page background */
---bg2:     #1e293b   /* slate-800 — card background */
---bg3:     #2d3f55   /* slate-700 — hover / inputs */
---border:  #2d3f55
---text:    #f1f5f9   /* near-white */
---text2:   #94a3b8   /* slate-400 — muted text */
---accent:  #3b82f6   /* blue-500 */
---success: #22c55e   /* green-500 */
---warning: #f59e0b   /* amber-500 */
---danger:  #ef4444   /* red-500 */
---purple:  #8b5cf6   /* violet-500 */
+--bg-base:      #080c1a   /* dark page background (light: #f5f7fb) */
+--glass-bg:     rgba(16,24,48,0.55)   /* light: rgba(255,255,255,0.98) */
+--glass-border: rgba(100,160,255,0.18)
+--glass-blur:   blur(18px)
+--accent-primary: #3b82f6 · --accent-danger: #ef4444 · --accent-success: #10b981
 ```
 
 **Design principles:**
-- No background animations, no glow effects, no scan lines
-- Inter font (Google Fonts)
-- Stat cards use 3px left border accent (not glow)
-- Badges are pill-shaped (border-radius: 20px)
-- Only 3 animations remain: `fadeIn` (page load), `shimmer` (skeleton), `spin` (spinner)
+- Glassmorphism: `.glass` class (translucent background + `backdrop-filter: blur()`) used by `GlassCard` and the Sidebar/Topbar shell
+- Glow effects and colored status badges throughout (risk levels, audit action badges, integrity indicator)
+- Dark/light toggle: `html.dark` class, persisted in `localStorage` (`darkMode`), toggled from the Topbar or `/dashboard/settings`; `lib/useIsDark.ts` exposes the current state via a `MutationObserver`
+- framer-motion for the Sidebar mobile drawer (slide + backdrop), card hover micro-interactions, and page transitions
+- Sidebar + Topbar shell (`components/layout/`, wired in `app/dashboard/layout.tsx`) — Sidebar collapses to icon-only at `md` breakpoint, becomes a slide-in drawer below `md`
+- Inter font (Google Fonts); badges remain pill-shaped
 
-**Icons:** lucide-react v1.20+ (SVG, no emojis anywhere)
+**Icons:** lucide-react v0.408 (SVG, no emojis anywhere)
 
 **RBAC in UI:**
-- Admin-only: Run Detection, Export Report, Live Scan page, Audit Log page, Resolve button
-- `isAdmin()` from `utils/auth.js` checks role from decoded JWT in localStorage
+- Admin-only: Run Detection, Export Report, Live Scan page/nav item + route guard, Audit Trail page/nav item + route guard, Resolve button, Generate PDF Report
+- `isAdmin()` from `lib/auth.ts` checks the `role` cookie (set from the real login response); Sidebar hides admin-only nav items and `live-scan`/`audit` pages redirect non-admins to `/dashboard`
 
 ---
 
@@ -334,13 +339,12 @@ else:               return "low"     # top third — mildly anomalous
 | `Live scan UX fixes` | Uptime format bug, risk thresholds, Analyze Now button |
 | `PDF security report` | reportlab 6-section report, `/api/report/generate` |
 
-**Not yet committed (as of last session):**
-- UI redesign (Tailwind Slate palette, Inter font, no animations)
-- Risk thresholds updated to standard IsolationForest thirds (-0.33 / -0.17)
+**Not yet committed (as of last session, 2026-07-01):**
+- Full frontend replacement: the CRA app was deleted and replaced with a Next.js 14/TypeScript app (originally a separate downloaded prototype with mostly mock data), fully rewired to the real backend — `lib/api.ts` matches every real endpoint exactly (including fixing wrong paths the prototype had: `/audit` → `/api/audit-logs`, `/:id/review` → `/:id/resolve`), a real login flow replaced hardcoded demo credentials, Google OAuth/self-signup/password-reset/compliance-report were dropped (no backend support), and a new admin-only Live Scan page was built from scratch (the prototype had none). No backend changes were required. `npx next build` passes cleanly (14 routes, no type/lint errors).
 
 ---
 
 ## What's Left / Possible Next Steps
-- Commit & push the UI redesign and risk threshold changes
-- Final testing of all features end-to-end
+- Commit & push the Next.js frontend replacement
+- Final testing of all features end-to-end (in-browser verification pending for this session)
 - Dissertation write-up / report referencing this codebase

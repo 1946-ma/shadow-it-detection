@@ -36,11 +36,16 @@ import struct
 import threading
 from datetime import datetime
 
+# Windows consoles default to a legacy codepage (e.g. cp1252) that can't
+# encode the box-drawing characters used in banner()/progress() below.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ── Scapy import ──────────────────────────────────────────────────────────────
 try:
     from scapy.all import (
         IP, TCP, UDP, ICMP,
-        send, sr, sr1, RandShort, conf, get_if_list,
+        send, RandShort, conf,
     )
     conf.verb = 0          # suppress per-packet output
     SCAPY_OK = True
@@ -312,7 +317,7 @@ def main():
         err("Scapy is not installed. Run: pip install scapy")
         sys.exit(1)
 
-    if os.geteuid() != 0:
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
         err("This script must be run as root: sudo python3 traffic_gen.py ...")
         sys.exit(1)
 
