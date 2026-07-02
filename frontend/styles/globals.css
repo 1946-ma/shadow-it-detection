@@ -1,0 +1,1319 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Dark deep-space base */
+    --bg-base: #080c1a;
+    --bg-surface: rgba(255, 255, 255, 0.04);
+    --bg-surface-hover: rgba(255, 255, 255, 0.08);
+
+    /* Glassmorphism */
+    --glass-bg: rgba(16, 24, 48, 0.55);
+    --glass-border: rgba(100, 160, 255, 0.18);
+    --glass-blur: blur(18px);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+    /* Accent palette */
+    --accent-primary: #3b82f6;
+    --accent-glow: #60a5fa;
+    --accent-danger: #ef4444;
+    --accent-warning: #f59e0b;
+    --accent-success: #10b981;
+    --accent-purple: #8b5cf6;
+    --accent-orange: #f97316;
+
+    /* Text */
+    --text-primary: #e2e8f0;
+    --text-muted: #64748b;
+    --text-faint: #334155;
+
+    --radius: 16px;
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light mode */
+html:not(.dark) {
+    --bg-base: #f5f7fb;
+    --bg-surface: rgba(15, 23, 42, 0.04);
+    --bg-surface-hover: rgba(15, 23, 42, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.98);
+    --glass-border: rgba(59, 130, 246, 0.35);
+    --glass-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    --text-primary: #0f172a;
+    --text-muted: #1f2937;
+    --text-faint: #374151;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    background-attachment: fixed;
+}
+
+html.dark body {
+    background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.10) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
+}
+
+html:not(.dark) body {
+    background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+}
+
+.glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow);
+    border-radius: var(--radius);
+    transition: var(--transition);
+}
+
+.glass:hover {
+    border-color: rgba(100, 160, 255, 0.35);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(100, 160, 255, 0.12);
+}
+
+.glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.glow-green {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.glow-purple {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+.glow-orange {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+}
+
+/* Select dropdown styling */
+select {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #e2e8f0 !important;
+    color-scheme: dark !important;
+    accent-color: #3b82f6 !important;
+}
+
+select option {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+
+html:not(.dark) select {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    color-scheme: light !important;
+    accent-color: #3b82f6 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+html:not(.dark) select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+
+select option:hover {
+    background-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+select option:checked {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* LIGHT MODE COMPREHENSIVE FIXES */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 1. TOPBAR / HEADER */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) header {
+    --glass-bg: rgba(255, 255, 255, 0.98) !important;
+    --glass-border: rgba(15, 23, 42, 0.08) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06) !important;
+}
+
+html:not(.dark) header h1 {
+    color: #0f172a !important;
+}
+
+html:not(.dark) header p {
+    color: #475569 !important;
+}
+
+/* Search input */
+html:not(.dark) header input[type="text"],
+html:not(.dark) header input[type="search"] {
+    background: #f1f5f9 !important;
+    border-color: rgba(15, 23, 42, 0.15) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) header input::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* All header icons and buttons */
+html:not(.dark) header button,
+html:not(.dark) header svg {
+    color: #374151 !important;
+}
+
+html:not(.dark) header button:hover {
+    background: rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Notification badge */
+html:not(.dark) header span[class*="bg-red"] {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 2. SIDEBAR / NAVIGATION */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) aside {
+    --glass-bg: rgba(255, 255, 255, 0.98) !important;
+    --glass-border: rgba(15, 23, 42, 0.08) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Logo text */
+html:not(.dark) aside p {
+    color: #0f172a !important;
+}
+
+/* Navigation items */
+html:not(.dark) aside nav a div {
+    color: #374151 !important;
+}
+
+html:not(.dark) aside nav a div:hover {
+    background: rgba(59, 130, 246, 0.08) !important;
+    color: #1d4ed8 !important;
+}
+
+html:not(.dark) aside nav a div[class*="bg-blue"] {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #1d4ed8 !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Navigation icons */
+html:not(.dark) aside nav svg {
+    color: currentColor !important;
+}
+
+/* Role badge at bottom */
+html:not(.dark) aside div[class*="bg-slate"] {
+    background: rgba(15, 23, 42, 0.06) !important;
+    color: #374151 !important;
+    border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Sign out button */
+html:not(.dark) aside button[class*="text-red"] {
+    color: #ef4444 !important;
+}
+
+html:not(.dark) aside button[class*="text-red"] svg {
+    color: #ef4444 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 3. GLASS CARDS (Dashboard stat cards, content cards) */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) .glass {
+    --glass-bg: rgba(255, 255, 255, 0.98) !important;
+    --glass-border: rgba(15, 23, 42, 0.08) !important;
+    --glass-shadow: 0 1px 4px rgba(15, 23, 42, 0.06) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06) !important;
+}
+
+html:not(.dark) .glass:hover {
+    border-color: rgba(15, 23, 42, 0.15) !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Card titles */
+html:not(.dark) .glass h1,
+html:not(.dark) .glass h2,
+html:not(.dark) .glass h3 {
+    color: #0f172a !important;
+}
+
+/* Card body text */
+html:not(.dark) .glass p,
+html:not(.dark) .glass span,
+html:not(.dark) .glass td {
+    color: #374151 !important;
+}
+
+/* Card subtitles */
+html:not(.dark) .glass p[class*="text-xs"],
+html:not(.dark) .glass p[class*="text-sm"] {
+    color: #64748b !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 4. FORM INPUTS & SELECTS */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) input[type="text"],
+html:not(.dark) input[type="search"],
+html:not(.dark) input[type="email"],
+html:not(.dark) input[type="password"],
+html:not(.dark) textarea,
+html:not(.dark) select {
+    background: #f1f5f9 !important;
+    border-color: rgba(15, 23, 42, 0.15) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+html:not(.dark) select option {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 5. TABLE ELEMENTS */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) table th {
+    color: #374151 !important;
+    border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html:not(.dark) table td {
+    color: #374151 !important;
+    border-bottom-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) table tr:hover {
+    background: rgba(15, 23, 42, 0.02) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 6. BUTTONS & INTERACTIVE ELEMENTS */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) button {
+    color: #374151 !important;
+}
+
+html:not(.dark) button:hover {
+    background: rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Blue primary buttons */
+html:not(.dark) button[class*="bg-blue"],
+html:not(.dark) button[class*="text-blue"] {
+    color: #3b82f6 !important;
+}
+
+html:not(.dark) button[class*="border-blue"] {
+    border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 7. BADGES & STATUS INDICATORS */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) span[class*="bg-red"],
+html:not(.dark) span[class*="bg-green"],
+html:not(.dark) span[class*="bg-amber"] {
+    color: #ffffff !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* 8. LINKS & NAVIGATION TEXT */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) a {
+    color: #3b82f6 !important;
+}
+
+html:not(.dark) a:hover {
+    color: #1d4ed8 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* LIGHT MODE: BORDERS & SHADOWS - VISIBILITY FIXES */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* ─ 1. TOPBAR BORDER (bottom separator line) ─ */
+html:not(.dark) .topbar,
+html:not(.dark) header,
+html:not(.dark) nav.top-nav {
+    border-bottom: 1.5px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.07) !important;
+}
+
+/* ─ 2. SIDEBAR BORDER (right separator line) ─ */
+html:not(.dark) .sidebar,
+html:not(.dark) aside {
+    border-right: 1.5px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 1px 0 6px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* ─ 3. ALL CONTENT CARDS ─ */
+html:not(.dark) .card,
+html:not(.dark) .content-card,
+html:not(.dark) .stat-card,
+html:not(.dark) .glass-card,
+html:not(.dark) [class*="card"],
+html:not(.dark) [class*="Card"] {
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+    background: #ffffff !important;
+}
+
+html:not(.dark) .card:hover,
+html:not(.dark) .content-card:hover,
+html:not(.dark) [class*="card"]:hover {
+    border-color: rgba(59, 130, 246, 0.30) !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09) !important;
+}
+
+/* ─ 4. RANKED ITEM ROWS ─ */
+html:not(.dark) .ranked-item,
+html:not(.dark) .domain-item,
+html:not(.dark) .device-item,
+html:not(.dark) [class*="ranked"],
+html:not(.dark) [class*="item-row"] {
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    background: rgba(15, 23, 42, 0.02) !important;
+    border-radius: 8px !important;
+}
+
+html:not(.dark) .ranked-item:hover,
+html:not(.dark) .domain-item:hover {
+    border-color: rgba(59, 130, 246, 0.20) !important;
+    background: rgba(59, 130, 246, 0.03) !important;
+}
+
+/* ─ 5. TABLE DIVIDERS ─ */
+html:not(.dark) table,
+html:not(.dark) .data-table {
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+html:not(.dark) thead tr,
+html:not(.dark) .table-header-row {
+    border-bottom: 2px solid rgba(15, 23, 42, 0.10) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) tbody tr,
+html:not(.dark) .table-row {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+html:not(.dark) tbody tr:hover {
+    background: rgba(59, 130, 246, 0.03) !important;
+}
+
+/* ─ 6. SEARCH BAR BORDER ─ */
+html:not(.dark) .search-bar,
+html:not(.dark) input[type="search"],
+html:not(.dark) .topbar input {
+    border: 1.5px solid rgba(15, 23, 42, 0.15) !important;
+    background: #f8fafc !important;
+}
+
+html:not(.dark) .search-bar:focus,
+html:not(.dark) input[type="search"]:focus {
+    border-color: rgba(59, 130, 246, 0.50) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10) !important;
+    outline: none !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* LIGHT MODE: AUDIT PAGE & TYPOGRAPHY FIXES */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* ─ 1. PAGE TITLE & SUBTITLE ─ */
+html:not(.dark) h1.text-3xl,
+html:not(.dark) .text-3xl {
+    color: #0f172a !important;
+}
+
+html:not(.dark) .text-sm.text-slate-700,
+html:not(.dark) .text-sm.dark\:text-slate-400 {
+    color: #475569 !important;
+}
+
+/* ─ 2. TOPBAR SEARCH BAR (PRIORITY FIX) ─ */
+html:not(.dark) .hidden.lg\:flex.items-center.rounded-lg,
+html:not(.dark) header .flex.items-center.px-4.py-2 {
+    background: #f1f5f9 !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.18) !important;
+    border-radius: 8px !important;
+}
+
+html:not(.dark) header input[type="text"],
+html:not(.dark) header .hidden.lg\:flex input {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: none !important;
+}
+
+html:not(.dark) header input::placeholder {
+    color: #94a3b8 !important;
+}
+
+html:not(.dark) header input:focus {
+    background: #ffffff !important;
+    outline: none !important;
+}
+
+html:not(.dark) header .lucide-search,
+html:not(.dark) header svg {
+    color: #64748b !important;
+}
+
+/* ─ 3. AUDIT PAGE SEARCH BAR ─ */
+html:not(.dark) input.w-full.px-4.py-3.rounded-lg.bg-slate-100,
+html:not(.dark) input.bg-slate-100.dark\:bg-white\/5 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.15) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) input.w-full.px-4.py-3.rounded-lg.bg-slate-100:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10) !important;
+    outline: none !important;
+}
+
+html:not(.dark) input.bg-slate-100.placeholder-slate-600::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* ─ 4. FILTER BUTTONS (All Actions / LOGIN / VIEW etc.) ─ */
+html:not(.dark) button.bg-slate-100.dark\:bg-white\/5,
+html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium {
+    color: #374151 !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.15) !important;
+    border-radius: 6px !important;
+}
+
+html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium:hover {
+    background: rgba(59, 130, 246, 0.06) !important;
+    border-color: rgba(59, 130, 246, 0.30) !important;
+    color: #1d4ed8 !important;
+}
+
+html:not(.dark) button.bg-blue-600.text-white,
+html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium.bg-blue-600 {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+
+/* ─ 5. AUDIT LOG ENTRY ROWS ─ */
+html:not(.dark) .glass.p-5.hover\:bg-white\/10,
+html:not(.dark) .glass.p-5 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.09) !important;
+    border-radius: 10px !important;
+}
+
+html:not(.dark) .glass.p-5:hover {
+    border-color: rgba(59, 130, 246, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Action type text colors */
+html:not(.dark) span.text-blue-400,
+html:not(.dark) .text-blue-400 {
+    color: #2563eb !important;
+}
+
+html:not(.dark) span.text-purple-400,
+html:not(.dark) .text-purple-400 {
+    color: #7c3aed !important;
+}
+
+html:not(.dark) span.text-amber-400,
+html:not(.dark) .text-amber-400 {
+    color: #d97706 !important;
+}
+
+html:not(.dark) span.text-red-400,
+html:not(.dark) .text-red-400 {
+    color: #dc2626 !important;
+}
+
+html:not(.dark) span.text-emerald-400,
+html:not(.dark) .text-emerald-400 {
+    color: #16a34a !important;
+}
+
+/* "on" connector text */
+html:not(.dark) .text-xs.text-slate-700.dark\:text-slate-600 {
+    color: #94a3b8 !important;
+}
+
+/* Resource name after "on" */
+html:not(.dark) .text-sm.font-medium.text-slate-900.dark\:text-white {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+/* IP, date, time metadata */
+html:not(.dark) .text-xs.text-slate-700.dark\:text-slate-500 {
+    color: #64748b !important;
+}
+
+html:not(.dark) span.text-slate-300 {
+    color: #3b82f6 !important;
+}
+
+/* ─ 6. ACTION BADGE PILLS ─ */
+/* Override Badge component colors for light mode */
+html:not(.dark) span.inline-flex.items-center.rounded-full.text-xs.font-medium.border {
+    border: 1.5px solid !important;
+    background: transparent !important;
+    border-radius: 999px !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    padding: 2px 10px !important;
+}
+
+/* Login badge */
+html:not(.dark) span.bg-blue-500\/15.text-blue-400 {
+    color: #2563eb !important;
+    border-color: #2563eb !important;
+    background: rgba(37, 99, 235, 0.06) !important;
+}
+
+/* View badge */
+html:not(.dark) span.bg-purple-500\/15.text-purple-400 {
+    color: #7c3aed !important;
+    border-color: #7c3aed !important;
+    background: rgba(124, 58, 237, 0.06) !important;
+}
+
+/* Update badge */
+html:not(.dark) span.bg-amber-500\/15.text-amber-400 {
+    color: #d97706 !important;
+    border-color: #d97706 !important;
+    background: rgba(217, 119, 6, 0.06) !important;
+}
+
+/* Delete badge */
+html:not(.dark) span.bg-red-500\/15.text-red-400 {
+    color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    background: rgba(220, 38, 38, 0.06) !important;
+}
+
+/* Create badge */
+html:not(.dark) span.bg-emerald-500\/15.text-emerald-400 {
+    color: #16a34a !important;
+    border-color: #16a34a !important;
+    background: rgba(22, 163, 74, 0.06) !important;
+}
+
+/* Logout/Slate badge */
+html:not(.dark) span.bg-slate-500\/15.text-slate-400 {
+    color: #475569 !important;
+    border-color: #475569 !important;
+    background: rgba(71, 85, 105, 0.06) !important;
+}
+
+/* ─ 7. STAT CARDS (Total Events, Today's Events, Unique IPs) ─ */
+html:not(.dark) .glass.p-4.text-center {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05) !important;
+    border-radius: 10px !important;
+}
+
+html:not(.dark) .glass.p-4.text-center .text-sm.font-semibold {
+    color: #64748b !important;
+}
+
+html:not(.dark) .glass.p-4.text-center .text-2xl.font-bold {
+    color: #0f172a !important;
+}
+
+/* ─ 8. LOG ICON BOXES ─ */
+html:not(.dark) .flex.items-center.rounded-lg.bg-blue-500\/10,
+html:not(.dark) .w-12.h-12.rounded-lg.bg-blue-500\/10,
+html:not(.dark) [class*="bg-"][class*="\/10"].flex.items-center.justify-center {
+    background: rgba(15, 23, 42, 0.05) !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 8px !important;
+    color: #374151 !important;
+}
+
+/* Color-specific icon boxes */
+html:not(.dark) .bg-blue-500\/10 {
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #2563eb !important;
+}
+
+html:not(.dark) .bg-slate-500\/10 {
+    background: rgba(71, 85, 105, 0.08) !important;
+    color: #475569 !important;
+}
+
+html:not(.dark) .bg-emerald-500\/10 {
+    background: rgba(16, 163, 74, 0.08) !important;
+    color: #16a34a !important;
+}
+
+html:not(.dark) .bg-amber-500\/10 {
+    background: rgba(217, 119, 6, 0.08) !important;
+    color: #d97706 !important;
+}
+
+html:not(.dark) .bg-red-500\/10 {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #dc2626 !important;
+}
+
+html:not(.dark) .bg-purple-500\/10 {
+    background: rgba(124, 58, 237, 0.08) !important;
+    color: #7c3aed !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* LIGHT MODE: DASHBOARD RANKED ITEMS & PROGRESS BARS */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* ─ 1. RANKED ITEM ROW BORDERS (Top Flagged Domains & Unknown Devices) ─ */
+html:not(.dark) .border.border-white\/10,
+html:not(.dark) [class*="border-white"]:not(.dark),
+html:not(.dark) .p-4.rounded-lg.bg-white\/3 {
+    border: 1.5px solid rgba(15, 23, 42, 0.09) !important;
+    border-radius: 8px !important;
+    background: #fafafa !important;
+}
+
+html:not(.dark) .border.border-white\/10:hover,
+html:not(.dark) .p-4.rounded-lg.bg-white\/3:hover {
+    border-color: rgba(59, 130, 246, 0.25) !important;
+    background: rgba(59, 130, 246, 0.02) !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* ─ 2. RANKED NUMBER BADGES (the circles with 1,2,3,4,5) ─ */
+/* Blue badges — Flagged Domains */
+html:not(.dark) .bg-blue-500\/20.text-blue-400 {
+    background: rgba(37, 99, 235, 0.12) !important;
+    color: #2563eb !important;
+    border: 1px solid rgba(37, 99, 235, 0.20) !important;
+}
+
+/* Orange badges — Unknown Devices */
+html:not(.dark) .bg-orange-500\/20.text-orange-400 {
+    background: rgba(234, 88, 12, 0.10) !important;
+    color: #ea580c !important;
+    border: 1px solid rgba(234, 88, 12, 0.20) !important;
+}
+
+/* ─ 3. COUNT NUMBERS ON RIGHT ─ */
+/* Blue counts — Flagged Domains */
+html:not(.dark) .text-sm.font-bold.text-blue-400 {
+    color: #2563eb !important;
+    font-weight: 700 !important;
+}
+
+/* Orange counts — Unknown Devices */
+html:not(.dark) .text-sm.font-bold.text-orange-400 {
+    color: #ea580c !important;
+    font-weight: 700 !important;
+}
+
+/* ─ 4. PROGRESS BAR TRACKS (PRIORITY) ─ */
+/* Track background */
+html:not(.dark) .bg-white\/5.rounded-full,
+html:not(.dark) .h-1\.5.bg-white\/5 {
+    background: rgba(15, 23, 42, 0.08) !important;
+    border-radius: 999px !important;
+}
+
+html:not(.dark) .h-1\.5.bg-white\/5.overflow-hidden.border {
+    background: rgba(15, 23, 42, 0.08) !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Blue fill — Flagged Domains */
+html:not(.dark) .bg-blue-500\/60.rounded-full {
+    background: #3b82f6 !important;
+    border-radius: 999px !important;
+}
+
+/* Orange fill — Unknown Devices */
+html:not(.dark) .bg-orange-500\/60.rounded-full {
+    background: #ea580c !important;
+    border-radius: 999px !important;
+}
+
+/* ─ 5. "% of total" TEXT ─ */
+html:not(.dark) .text-xs.text-slate-500 {
+    color: #64748b !important;
+    font-size: 0.78rem !important;
+}
+
+/* ─ 6. SYSTEM STATUS SECTION & SUB-CARDS (PRIORITY) ─ */
+/* Section heading */
+html:not(.dark) .text-xl.font-semibold.text-slate-900.dark\:text-white {
+    color: #0f172a !important;
+}
+
+/* Status card - Emerald (Model Status) */
+html:not(.dark) .from-emerald-500\/10.to-emerald-500\/5,
+html:not(.dark) .border.border-emerald-500\/20 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) .from-emerald-500\/10:hover {
+    border-color: rgba(59, 130, 246, 0.22) !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
+}
+
+/* Status card - Blue (Records Processed) */
+html:not(.dark) .from-blue-500\/10.to-blue-500\/5,
+html:not(.dark) .border.border-blue-500\/20 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) .from-blue-500\/10:hover {
+    border-color: rgba(59, 130, 246, 0.22) !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
+}
+
+/* Status card - Purple (Engine Version) */
+html:not(.dark) .from-purple-500\/10.to-purple-500\/5,
+html:not(.dark) .border.border-purple-500\/20 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) .from-purple-500\/10:hover {
+    border-color: rgba(59, 130, 246, 0.22) !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
+}
+
+/* Status card - Cyan (Database) */
+html:not(.dark) .from-cyan-500\/10.to-cyan-500\/5,
+html:not(.dark) .border.border-cyan-500\/20 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) .from-cyan-500\/10:hover {
+    border-color: rgba(59, 130, 246, 0.22) !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
+}
+
+/* Status card labels */
+html:not(.dark) .text-xs.text-slate-500.mb-2 {
+    color: #64748b !important;
+    font-size: 0.8rem !important;
+}
+
+/* Status card values */
+html:not(.dark) .text-sm.font-semibold.text-emerald-400,
+html:not(.dark) .text-sm.font-semibold.text-blue-400,
+html:not(.dark) .text-sm.font-semibold.text-purple-400,
+html:not(.dark) .text-sm.font-semibold.text-cyan-400 {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+/* ─ 7. STATUS INDICATOR DOTS & VALUES ─ */
+/* Active dot — green */
+html:not(.dark) .bg-emerald-500.animate-pulse {
+    background: #16a34a !important;
+    box-shadow: 0 0 6px rgba(22, 163, 74, 0.4) !important;
+}
+
+html:not(.dark) .text-emerald-400 {
+    color: #16a34a !important;
+}
+
+/* Connected dot — cyan */
+html:not(.dark) .bg-cyan-500.animate-pulse {
+    background: #0891b2 !important;
+    box-shadow: 0 0 6px rgba(8, 145, 178, 0.4) !important;
+}
+
+html:not(.dark) .text-cyan-400 {
+    color: #0891b2 !important;
+}
+
+/* Records Processed value */
+html:not(.dark) .text-blue-400 {
+    color: #2563eb !important;
+    font-weight: 700 !important;
+}
+
+/* Engine Version value */
+html:not(.dark) .text-purple-400 {
+    color: #7c3aed !important;
+    font-weight: 700 !important;
+}
+
+/* ─ 8. OUTER SECTION CARD BORDERS ─ */
+/* GlassCard wrapper for Top Flagged & Top Unknown sections */
+html:not(.dark) .glass.p-6 {
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* AUDIT PAGE: BADGE COLORS & HEADER VISIBILITY FIXES */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* ─ 1. ACTION BADGE COLORS (BOTH MODES) ─ */
+/* Hardcoded semantic colors that work in both light and dark modes */
+
+.badge-login {
+    background: rgba(37, 99, 235, 0.15);
+    color: #1d4ed8;
+    border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+.badge-logout {
+    background: rgba(107, 114, 128, 0.15);
+    color: #4b5563;
+    border: 1px solid rgba(107, 114, 128, 0.25);
+}
+
+.badge-view {
+    background: rgba(109, 40, 217, 0.15);
+    color: #6d28d9;
+    border: 1px solid rgba(109, 40, 217, 0.25);
+}
+
+.badge-update {
+    background: rgba(180, 83, 9, 0.15);
+    color: #b45309;
+    border: 1px solid rgba(180, 83, 9, 0.30);
+}
+
+.badge-delete {
+    background: rgba(185, 28, 28, 0.15);
+    color: #b91c1c;
+    border: 1px solid rgba(185, 28, 28, 0.25);
+}
+
+.badge-create {
+    background: rgba(21, 128, 61, 0.15);
+    color: #15803d;
+    border: 1px solid rgba(21, 128, 61, 0.25);
+}
+
+.badge-detection {
+    background: rgba(8, 145, 178, 0.15);
+    color: #0e7490;
+    border: 1px solid rgba(8, 145, 178, 0.25);
+}
+
+.badge-access-denied {
+    background: rgba(185, 28, 28, 0.10);
+    color: #b91c1c;
+    border: 1px solid rgba(185, 28, 28, 0.20);
+}
+
+/* Dark mode variants — slightly brighter */
+.dark .badge-login {
+    background: rgba(37, 99, 235, 0.20);
+    color: #93c5fd;
+}
+
+.dark .badge-logout {
+    background: rgba(107, 114, 128, 0.20);
+    color: #d1d5db;
+}
+
+.dark .badge-view {
+    background: rgba(109, 40, 217, 0.20);
+    color: #c4b5fd;
+}
+
+.dark .badge-update {
+    background: rgba(180, 83, 9, 0.20);
+    color: #fcd34d;
+}
+
+.dark .badge-delete {
+    background: rgba(185, 28, 28, 0.20);
+    color: #fca5a5;
+}
+
+.dark .badge-create {
+    background: rgba(21, 128, 61, 0.20);
+    color: #86efac;
+}
+
+.dark .badge-detection {
+    background: rgba(8, 145, 178, 0.20);
+    color: #67e8f9;
+}
+
+/* ─ 2. OUTCOME COLORS (BOTH MODES) ─ */
+.outcome-success {
+    color: #15803d;
+}
+
+.outcome-denied {
+    color: #b91c1c;
+}
+
+.dark .outcome-success {
+    color: #86efac;
+}
+
+.dark .outcome-denied {
+    color: #fca5a5;
+}
+
+/* ─ 3. TIMESTAMP STYLING (BOTH MODES) ─ */
+.ts-date {
+    display: block;
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.ts-time {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* ─ 4. AUDIT PAGE HEADER & STATS VISIBILITY (LIGHT MODE) ─ */
+html:not(.dark) .audit-page-header,
+html:not(.dark) .page-header-section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #0f172a !important;
+    background: transparent !important;
+}
+
+html:not(.dark) h1.text-3xl.font-bold {
+    color: #0f172a !important;
+}
+
+html:not(.dark) .text-3xl.font-bold.text-slate-900.dark\:text-white {
+    color: #0f172a !important;
+}
+
+html:not(.dark) .audit-page-subtitle,
+html:not(.dark) .text-sm.text-slate-700.dark\:text-slate-400 {
+    color: #64748b !important;
+}
+
+/* Stat cards row */
+html:not(.dark) .audit-stats-row {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+html:not(.dark) .grid.grid-cols-4.gap-4 {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+html:not(.dark) .audit-stat-card,
+html:not(.dark) .glass.p-4 {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) .audit-stat-label,
+html:not(.dark) .text-xs.font-semibold.text-slate-900.dark\:text-slate-500 {
+    color: #64748b !important;
+}
+
+html:not(.dark) .audit-stat-value {
+    color: #0f172a !important;
+}
+
+/* Source IP color in light mode */
+html:not(.dark) .text-sm.font-mono.text-blue-600.dark\:text-blue-400 {
+    color: #2563eb !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* DARK MODE: AUDIT TABLE ROW HOVER FIXES */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* Subtle hover on audit log rows — dark mode only */
+.dark .audit-log-row:hover,
+.dark .log-entry:hover,
+.dark [class*="table-row"]:hover,
+.dark .motion-div:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Ensure text colors don't change on hover */
+.dark .audit-log-row:hover td,
+.dark .audit-log-row:hover span,
+.dark .audit-log-row:hover p,
+.dark .audit-log-row:hover div {
+    color: inherit !important;
+}
+
+/* Active/focused row state */
+.dark .audit-log-row:focus,
+.dark .audit-log-row.selected,
+.dark .audit-log-row.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* TABLE COLUMN HEADERS — LIGHT MODE */
+/* ──────────────────────────────────────────────────────────────── */
+
+html:not(.dark) .table-header-row th,
+html:not(.dark) thead th,
+html:not(.dark) .col-header-row,
+html:not(.dark) .col-header-label,
+html:not(.dark) [class*="column-header"],
+html:not(.dark) [class*="col-hdr"] {
+    color: #374151 !important;
+    background: rgba(15, 23, 42, 0.03) !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.10) !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+/* TABLE COLUMN HEADERS — DARK MODE */
+/* ──────────────────────────────────────────────────────────────── */
+
+/* Column header row background — subtle, not bright */
+.dark .table-header-row,
+.dark thead tr,
+.dark .col-header-row,
+.dark [class*="table-head"] {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+/* Column header text — muted, subordinate to row data */
+.dark .table-header-row th,
+.dark .table-header-row [class*="col-hdr"],
+.dark thead th,
+.dark .col-header-label,
+.dark [class*="column-header"],
+.dark [class*="header"]>div {
+    color: rgba(255, 255, 255, 0.35) !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SEARCH RESULTS DROPDOWN — both modes
+   Sits inside <header> so it needs its own overrides to beat the
+   generic  html:not(.dark) header button  rules above.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Dark mode — default (html.dark) */
+.search-results-dropdown {
+    background: rgba(15, 23, 42, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Light mode override */
+html:not(.dark) .search-results-dropdown {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* All buttons inside the dropdown — reset the generic header rule */
+.search-results-dropdown button {
+    color: inherit !important;
+    background: transparent !important;
+}
+
+/* Inactive hover */
+html:not(.dark) .search-results-dropdown button:hover {
+    background: rgba(15, 23, 42, 0.04) !important;
+}
+
+.dark .search-results-dropdown button:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Active (keyboard-highlighted) result row */
+html:not(.dark) .search-result-active {
+    background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.dark .search-result-active {
+    background: rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Active icon */
+html:not(.dark) .search-result-active .search-result-icon {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #2563eb !important;
+}
+
+.dark .search-result-active .search-result-icon {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #93c5fd !important;
+}
+
+/* Inactive icon */
+html:not(.dark) .search-result-icon {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+}
+
+.dark .search-result-icon {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+}
+
+/* Label text */
+html:not(.dark) .search-result-label {
+    color: #0f172a !important;
+}
+
+.dark .search-result-label {
+    color: #f1f5f9 !important;
+}
+
+/* Description text */
+html:not(.dark) .search-result-desc {
+    color: #64748b !important;
+}
+
+.dark .search-result-desc {
+    color: #94a3b8 !important;
+}
+
+/* Footer hint text */
+html:not(.dark) .search-results-footer {
+    color: #94a3b8 !important;
+    border-top-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .search-results-footer {
+    color: #475569 !important;
+    border-top-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Enter hint on active row */
+html:not(.dark) .search-enter-hint {
+    color: #94a3b8 !important;
+}
+
+.dark .search-enter-hint {
+    color: #475569 !important;
+}
+
+/* Section label ("Pages") */
+html:not(.dark) .search-section-label {
+    color: #94a3b8 !important;
+}
+
+.dark .search-section-label {
+    color: #475569 !important;
+}
+
+/* No-results state */
+html:not(.dark) .search-no-results {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(15, 23, 42, 0.12) !important;
+    color: #64748b !important;
+}
+
+.dark .search-no-results {
+    background: rgba(15, 23, 42, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    color: #94a3b8 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   AUDIT TRAIL INTEGRITY BADGE
+   ══════════════════════════════════════════════════════════════════ */
+.integrity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(22, 163, 74, 0.12);
+    color: #15803d;
+    border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+.dark .integrity-badge {
+    background: rgba(21, 128, 61, 0.2);
+    color: #86efac;
+    border-color: rgba(21, 128, 61, 0.3);
+}
