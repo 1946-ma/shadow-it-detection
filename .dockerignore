@@ -1,0 +1,12 @@
+# Backend build context (repo root) — keep it small.
+# data/ and ml/artifacts/ are runtime volume mounts, not image content.
+data/
+ml/artifacts/
+frontend/
+tools/
+.git/
+.env
+__pycache__/
+**/__pycache__/
+*.pyc
+*.log

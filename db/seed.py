@@ -6,7 +6,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bcrypt
-import psycopg2
+import psycopg
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +17,7 @@ USERS = [
 ]
 
 def seed():
-    conn = psycopg2.connect(
+    conn = psycopg.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", 5432),
         dbname=os.getenv("DB_NAME", "shadow_it_db"),

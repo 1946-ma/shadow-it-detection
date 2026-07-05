@@ -118,6 +118,19 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 
 ---
 
+## Docker Deployment (added 2026-07-05)
+```bash
+docker compose up --build -d
+# Dashboard: http://localhost:3005  (admin/admin123)  ·  API: http://localhost:5000
+```
+- **Services:** `db` (postgres:16-alpine; schema.sql + immutability.sql auto-applied by initdb on a fresh volume), `backend` (python:3.14-slim + gunicorn, seeds users on start), `frontend` (node:20-alpine multi-stage, `next start`).
+- **Host prerequisites (gitignored, volume-mounted read-only):** `ml/artifacts/` (train with `python ml/model.py`) and `data/` (CICIDS CSVs, needed for Run Detection). ML libs are **pinned in the Dockerfile** (scikit-learn 1.8.0 / numpy 2.4.2 / pandas 3.0.0 / joblib 1.5.3) to match the artifacts' training environment — bump the pins if artifacts are retrained under newer versions.
+- **Ports:** frontend published on **3005** (host 3000 is in a Windows excluded port range on the dev machine; 3005 is in Flask's CORS whitelist). `NEXT_PUBLIC_API_URL` is baked at image build time (compose build arg) — it must be the URL the *browser* uses.
+- **Live Scan is host-only:** a container on Docker Desktop/Windows cannot see the host's network adapters. For live capture demos run Flask directly on the host as Administrator.
+- Docker DB is its own volume (`pgdata`) — separate data from the host PostgreSQL instance.
+
+---
+
 ## Directory Structure
 ```
 shadow-it-detection/

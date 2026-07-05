@@ -1,0 +1,66 @@
+# Shadow IT Detection Framework — full stack
+#
+#   docker compose up --build -d
+#   Dashboard: http://localhost:3005   (login: admin / admin123)
+#   API:       http://localhost:5000
+#
+# Prerequisites on the host (both are gitignored):
+#   ml/artifacts/  — run `python ml/model.py` once to train
+#   data/          — CICIDS2017 CSVs (only needed for Run Detection)
+#
+# Live Scan is a HOST-ONLY feature: a container on Docker Desktop/Windows
+# cannot capture the host's network adapters. Run Flask directly on the
+# host (as Administrator) for live capture demos.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shadow_it_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_docker_2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # initdb runs these once, in order, on a fresh volume
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/immutability.sql:/docker-entrypoint-initdb.d/02-immutability.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shadow_it_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: shadow_it_db
+      DB_USER: shadow_it_app          # restricted role created by immutability.sql
+      DB_PASSWORD: sh4d0w_app_2026
+      JWT_SECRET: change-this-to-a-long-random-secret-for-production
+      JWT_EXPIRY_HOURS: "8"
+      FLASK_ENV: production
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./ml/artifacts:/app/ml/artifacts:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # URL the BROWSER uses to reach the API (baked in at build time)
+        NEXT_PUBLIC_API_URL: http://localhost:5000
+    depends_on:
+      - backend
+    ports:
+      # host 3000 is inside a Windows excluded port range on the dev
+      # machine; 3005 is already in Flask's CORS whitelist
+      - "3005:3000"
+
+volumes:
+  pgdata:
