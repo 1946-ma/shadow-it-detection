@@ -14,7 +14,10 @@ load_dotenv()
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+    # 3005: port 3000 falls in a Windows excluded port range (Hyper-V/WSL
+    # reservations) on the dev machine, so Next.js runs on 3005 there.
+    CORS(app, origins=["http://localhost:3000", "http://localhost:3005"],
+         supports_credentials=True)
 
     from backend.routes.auth       import auth_bp
     from backend.routes.detections import detections_bp
