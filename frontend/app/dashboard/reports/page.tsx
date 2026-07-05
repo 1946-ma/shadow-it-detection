@@ -82,7 +82,14 @@ export default function ReportsPage() {
         { label: 'Recall', value: (s.recall ?? 0) * 100, color: '#8b5cf6', description: 'Actual Shadow IT that was detected' },
         { label: 'F1-Score', value: (s.f1_score ?? 0) * 100, color: '#f59e0b', description: 'Harmonic mean of Precision & Recall' },
         { label: 'False Positive Rate', value: (s.false_positive_rate ?? 0) * 100, color: '#ef4444', description: 'Normal traffic incorrectly flagged', inverse: true },
+        { label: 'ROC-AUC', value: (s.roc_auc ?? 0) * 100, color: '#06b6d4', description: 'Anomaly-ranking quality of the unsupervised stage' },
     ]
+    const STAGES = [
+        { name: 'IsolationForest', role: 'Unsupervised — novel anomalies', accuracy: s.if_accuracy, precision: s.if_precision, recall: s.if_recall },
+        { name: 'RandomForest', role: 'Supervised — known attack patterns', accuracy: s.rf_accuracy, precision: s.rf_precision, recall: s.rf_recall },
+        { name: 'Hybrid (combined)', role: 'Flag if either stage detects', accuracy: s.accuracy, precision: s.precision, recall: s.recall },
+    ]
+    const hasStages = s.if_accuracy != null && s.rf_accuracy != null
     const specificity = s.tn != null && s.fp != null && (s.tn + s.fp) > 0 ? (s.tn / (s.tn + s.fp)) * 100 : 0
     const RADAR_DATA = [
         { metric: 'Accuracy', value: (s.accuracy ?? 0) * 100 },
@@ -103,7 +110,8 @@ export default function ReportsPage() {
                         Reports &amp; Analytics
                     </h1>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                        Real IsolationForest model performance from ml/evaluate.py
+                        Hybrid IsolationForest + RandomForest performance, measured on the held-out 30% of CICIDS2017
+                        {s.holdout_rows != null && ` (${s.holdout_rows.toLocaleString()} unseen flows)`}
                     </p>
                 </div>
                 {admin && (
@@ -132,7 +140,7 @@ export default function ReportsPage() {
 
             {activeTab === 'performance' && (
                 <div className="space-y-5">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                         {METRICS.map((m) => (
                             <GlassCard key={m.label} className="p-4">
                                 <p className="text-xs text-slate-500 dark:text-slate-500 mb-2 leading-tight">{m.label}</p>
@@ -181,6 +189,43 @@ export default function ReportsPage() {
                             )}
                         </GlassCard>
                     </div>
+
+                    {hasStages && (
+                        <GlassCard className="overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10">
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Detection Stage Breakdown</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                    Two-stage hybrid: the unsupervised IsolationForest catches novel anomalies at a strict false-positive gate,
+                                    while the supervised RandomForest recognises known attack patterns. A flow is flagged if either stage fires.
+                                </p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100 dark:bg-white/5 border-b border-slate-200 dark:border-white/10">
+                                        <tr className="text-xs text-slate-700 dark:text-slate-400 font-semibold uppercase tracking-wider">
+                                            <th className="text-left py-3 px-6">Stage</th>
+                                            <th className="text-left py-3 px-4">Role</th>
+                                            <th className="text-right py-3 px-4">Accuracy</th>
+                                            <th className="text-right py-3 px-4">Precision</th>
+                                            <th className="text-right py-3 px-6">Recall</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {STAGES.map((st, idx) => (
+                                            <motion.tr key={st.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.05 }}
+                                                className={`border-b border-slate-100 dark:border-white/5 ${idx === STAGES.length - 1 ? 'bg-blue-500/5 font-semibold' : ''}`}>
+                                                <td className="py-3 px-6 text-slate-900 dark:text-white">{st.name}</td>
+                                                <td className="py-3 px-4 text-xs text-slate-500 dark:text-slate-400">{st.role}</td>
+                                                <td className="py-3 px-4 text-right font-mono text-blue-600 dark:text-blue-400">{st.accuracy != null ? `${(st.accuracy * 100).toFixed(2)}%` : '—'}</td>
+                                                <td className="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">{st.precision != null ? `${(st.precision * 100).toFixed(2)}%` : '—'}</td>
+                                                <td className="py-3 px-6 text-right font-mono text-purple-600 dark:text-purple-400">{st.recall != null ? `${(st.recall * 100).toFixed(2)}%` : '—'}</td>
+                                            </motion.tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </GlassCard>
+                    )}
 
                     <GlassCard className="p-6">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">Isolation Forest Anomaly Score</h3>

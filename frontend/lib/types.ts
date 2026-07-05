@@ -73,10 +73,19 @@ export interface MetricsSummary {
     recall: number | null
     f1_score: number | null
     false_positive_rate: number | null
+    roc_auc: number | null
     tp: number | null
     tn: number | null
     fp: number | null
     fn: number | null
+    // Hybrid stage breakdown: IF = IsolationForest (unsupervised), RF = RandomForest (supervised)
+    if_accuracy: number | null
+    if_precision: number | null
+    if_recall: number | null
+    rf_accuracy: number | null
+    rf_precision: number | null
+    rf_recall: number | null
+    holdout_rows: number | null
     detection_time_s: number | null
     scenario_correct: number | null
     scenario_total: number | null

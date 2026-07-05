@@ -179,7 +179,7 @@ export default function LiveScanPage() {
                             </select>
                             {!interfaces.find((i) => i.device === iface)?.ip && (
                                 <p className="text-xs text-amber-500 mt-2">
-                                    This interface has no IP address — it's probably a virtual/inactive adapter and won't see real traffic. Pick one with an IP shown.
+                                    This interface has no IP address — it&apos;s probably a virtual/inactive adapter and won&apos;t see real traffic. Pick one with an IP shown.
                                 </p>
                             )}
                         </>
