@@ -23,6 +23,53 @@ except Exception:
     SCAPY_AVAILABLE = False
 
 
+# ── Service-name extraction (SNI / HTTP Host) ──────────────────────────────────
+# Names the destination service ("drive.google.com") instead of a raw IP.
+# ~95% of traffic is TLS, but the ClientHello's Server Name Indication is sent
+# in cleartext before encryption starts — no decryption involved.
+
+def extract_sni(payload: bytes):
+    """Server Name Indication from a TLS ClientHello, or None."""
+    try:
+        # TLS record type 0x16 (handshake) + handshake type 0x01 (ClientHello)
+        if len(payload) < 44 or payload[0] != 0x16 or payload[5] != 0x01:
+            return None
+        pos = 43                                   # record(5)+hs hdr(4)+ver(2)+random(32)
+        pos += 1 + payload[pos]                    # session id
+        pos += 2 + int.from_bytes(payload[pos:pos + 2], "big")   # cipher suites
+        pos += 1 + payload[pos]                    # compression methods
+        ext_end = pos + 2 + int.from_bytes(payload[pos:pos + 2], "big")
+        pos += 2
+        while pos + 4 <= min(ext_end, len(payload)):
+            ext_type = int.from_bytes(payload[pos:pos + 2], "big")
+            ext_len  = int.from_bytes(payload[pos + 2:pos + 4], "big")
+            pos += 4
+            if ext_type == 0:                      # server_name extension
+                name_len = int.from_bytes(payload[pos + 3:pos + 5], "big")
+                name = payload[pos + 5:pos + 5 + name_len]
+                return name.decode("ascii", "ignore") or None
+            pos += ext_len
+    except (IndexError, ValueError):
+        pass
+    return None
+
+
+_HTTP_METHODS = (b"GET ", b"POST ", b"HEAD ", b"PUT ", b"DELETE ", b"OPTIONS ", b"PATCH ")
+
+
+def extract_http_host(payload: bytes):
+    """Host header from a plaintext HTTP request, or None."""
+    if not payload.startswith(_HTTP_METHODS):
+        return None
+    head = payload[:2048]
+    i = head.find(b"\r\nHost:")
+    if i < 0:
+        return None
+    j = head.find(b"\r\n", i + 7)
+    host = head[i + 7 : j if j > 0 else len(head)].strip()
+    return host.decode("ascii", "ignore") or None
+
+
 # ── Flow record ────────────────────────────────────────────────────────────────
 
 class FlowRecord:
@@ -34,6 +81,7 @@ class FlowRecord:
         "fwd_lengths", "bwd_lengths", "all_lengths", "all_timestamps",
         "fin", "syn", "rst", "psh", "ack",
         "init_win_fwd", "init_win_bwd", "_win_fwd_set", "_win_bwd_set",
+        "sni", "_sni_tries",
     )
 
     def __init__(self, src_ip, dst_ip, src_port, dst_port, protocol, ts, src_mac=""):
@@ -55,6 +103,16 @@ class FlowRecord:
         self.fin = self.syn = self.rst = self.psh = self.ack = 0
         self.init_win_fwd = self.init_win_bwd = 0
         self._win_fwd_set = self._win_bwd_set = False
+        self.sni        = None
+        self._sni_tries = 0
+
+    def try_hostname(self, payload: bytes):
+        """Best-effort service-name extraction; handshakes arrive early, so
+        only the first few payload-bearing packets are worth parsing."""
+        if self.sni or self._sni_tries >= 10 or not payload:
+            return
+        self._sni_tries += 1
+        self.sni = extract_sni(payload) or extract_http_host(payload)
 
     def add_packet(self, pkt_src_ip, length, ts, tcp_flags=0, window=0):
         is_fwd = (pkt_src_ip == self.src_ip)
@@ -128,6 +186,7 @@ class FlowRecord:
             "Protocol":                       self.protocol,
             "src_mac":                        self.src_mac or "Live",
             "device_type":                    "unknown",
+            "sni":                            self.sni,
         }
 
 
@@ -185,12 +244,14 @@ class NetworkCollector:
         if pkt.haslayer(Ether):
             src_mac = pkt[Ether].src
 
+        payload = b""
         if pkt.haslayer(TCP):
             t        = pkt[TCP]
             src_port = t.sport
             dst_port = t.dport
             flags    = int(t.flags)
             window   = t.window
+            payload  = bytes(t.payload)
         elif pkt.haslayer(UDP):
             u        = pkt[UDP]
             src_port = u.sport
@@ -205,7 +266,10 @@ class NetworkCollector:
                 self._flows[key] = FlowRecord(
                     src_ip, dst_ip, src_port, dst_port, proto, ts, src_mac
                 )
-            self._flows[key].add_packet(src_ip, length, ts, flags, window)
+            flow = self._flows[key]
+            flow.add_packet(src_ip, length, ts, flags, window)
+            if payload:
+                flow.try_hostname(payload)
 
     def _flush_loop(self):
         from ml.model import detect

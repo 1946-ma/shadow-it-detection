@@ -285,6 +285,7 @@ Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_TH
 
 ### Live Capture (ml/collector.py)
 - `FlowRecord` — tracks bidirectional flow stats (canonical 5-tuple key: smaller IP first)
+- **SNI enrichment (added 2026-07-05):** `extract_sni()` parses the TLS ClientHello's cleartext Server Name Indication (no decryption); `extract_http_host()` grabs the Host header from plaintext HTTP. First hostname found in a flow's early payloads is stored on `FlowRecord.sni` (max 10 parse attempts/flow) and `detect()` prefers it over the raw destination IP for `dst_domain` — so the dashboard's Applications page names actual services (e.g. `drive.google.com`) for live-captured traffic. CICIDS records have no `sni` field and fall back to the IP.
 - `NetworkCollector` — singleton with sniff thread + flush thread
 - `flow_timeout=15s`, `flush_interval=5s`
 - `flush_all()` — force-analyses all active flows immediately (used by "Analyze Now" button)

@@ -193,10 +193,16 @@ def detect(records):
                 stype = _infer_type(row)
             risk  = classify_risk(score, stype)
 
+            # Prefer the extracted service hostname (TLS SNI / HTTP Host) over
+            # the raw destination IP — CICIDS records have no "sni" field and
+            # fall back to the IP.
+            sni = row.get("sni")
+            dst = sni if isinstance(sni, str) and sni else str(row.get("Destination IP", "Unknown"))
+
             results.append({
                 "src_ip":         str(row.get("Source IP",         "0.0.0.0")),
                 "src_mac":        str(row.get("src_mac",           "Unknown")),
-                "dst_domain":     str(row.get("Destination IP",    "Unknown")),
+                "dst_domain":     dst,
                 "protocol":       _proto_name(row.get("Protocol",  6)),
                 "bytes_sent":     int(float(row.get("Total Length of Fwd Packets", 0))),
                 "bytes_received": int(float(row.get("Total Length of Bwd Packets", 0))),
