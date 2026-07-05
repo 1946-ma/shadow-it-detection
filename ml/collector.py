@@ -384,25 +384,43 @@ class NetworkCollector:
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _routing_ip():
+    """Local IP of the adapter that actually routes internet traffic.
+    'Connecting' a UDP socket picks the outbound interface without sending
+    a single packet. None if offline."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return None
+
+
 def list_interfaces() -> list[dict]:
     """
     Returns interfaces with human-readable descriptions instead of raw
-    `\\Device\\NPF_{GUID}` paths, sorted so real, routable adapters (ones
-    with a non-link-local IPv4) come first — pseudo/virtual adapters like
-    "WAN Miniport (Network Monitor)" or TAP adapters (which never carry
-    real traffic) are pushed to the bottom instead of defaulting first.
+    `\\Device\\NPF_{GUID}` paths, sorted so the adapter that routes internet
+    traffic comes first (virtual adapters like Hyper-V switches also carry an
+    IP, so "has an IP" alone is not enough — an alphabetical sort put a
+    Hyper-V adapter above the real Wi-Fi one). Adapters with any routable
+    IPv4 come next; pseudo/TAP adapters without one go last.
     `device` is the raw path Scapy's sniff(iface=...) needs.
     """
     if not SCAPY_AVAILABLE:
         return []
     try:
+        routing_ip = _routing_ip()
         result = []
         for device, iface in conf.ifaces.items():
             description = getattr(iface, "description", "") or device
             ips4 = list(getattr(iface, "ips", {}).get(4, []))
             ip = next((a for a in ips4 if a and not a.startswith("169.254.")), None)
             result.append({"device": device, "description": description, "ip": ip})
-        result.sort(key=lambda r: (r["ip"] is None, r["description"]))
+        result.sort(key=lambda r: (r["ip"] != routing_ip or routing_ip is None,
+                                   r["ip"] is None, r["description"]))
         return result
     except Exception:
         return get_if_list()
