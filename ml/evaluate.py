@@ -8,11 +8,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
 import numpy as np
 import pandas as pd
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_auc_score
 
-from ml.load_cicids import load_all, FEATURE_COLS
+from ml.load_cicids import load_all, train_mask, FEATURE_COLS
 from ml.preprocess  import preprocess, load_scaler
-from ml.model       import load_model, classify_risk, _infer_type
+from ml.model       import load_model, load_rf, classify_risk, _infer_type
 
 REPORTS = os.path.join(os.path.dirname(__file__), "reports")
 
@@ -138,15 +138,16 @@ SCENARIOS = [
 ]
 
 
-def run_scenario(sc, model, scaler) -> dict:
+def run_scenario(sc, model, rf, scaler) -> dict:
     df = pd.DataFrame([sc["record"]])
     t0 = time.perf_counter()
     X, _, _, _ = preprocess(df, fit=False, scaler=scaler)
     pred  = model.predict(X)[0]
     score = model.score_samples(X)[0]
+    rf_hit = bool(rf is not None and rf.predict(X)[0] == 1)
     ms    = (time.perf_counter() - t0) * 1000
 
-    predicted = 1 if pred == -1 else 0
+    predicted = 1 if (pred == -1 or rf_hit) else 0
     stype = sc["record"].get("shadow_it_type", "hardware") if predicted == 1 else "—"
     risk  = classify_risk(score, stype) if predicted == 1 else "—"
 
@@ -168,28 +169,50 @@ def evaluate():
     print("=" * W)
 
     print("\nLoading dataset …")
-    df     = load_all(sample_per_file=20_000)
+    df = load_all(sample_per_file=20_000)
+
+    # Evaluate ONLY on the 30% holdout partition — rows the IF and RF never
+    # saw during training (train_mask is deterministic across scripts).
+    df = df[~train_mask(df)]
+    print(f"Holdout partition: {len(df):,} rows (70% train excluded)")
+
     model  = load_model()
+    rf     = load_rf()
     scaler = load_scaler()
 
     t0 = time.perf_counter()
     X, df_clean, _, _ = preprocess(df, fit=False, scaler=scaler)
-    preds = model.predict(X)
+    preds_if = model.predict(X)
+    scores   = model.score_samples(X)
+    preds_rf = rf.predict(X) if rf is not None else np.zeros(len(X), dtype=int)
     detection_time = time.perf_counter() - t0
 
-    y_pred = (preds == -1).astype(int)
-    y_true = df_clean["shadow_it_label"].values if "shadow_it_label" in df_clean.columns \
+    # Hybrid: known-attack pattern (RF) OR strong unsupervised anomaly (IF)
+    y_pred = ((preds_if == -1) | (preds_rf == 1)).astype(int)
+    y_true = np.asarray(df_clean["shadow_it_label"].values) if "shadow_it_label" in df_clean.columns \
              else np.zeros(len(y_pred), dtype=int)
 
     m = compute_metrics(y_true, y_pred)
+    # ROC-AUC of the unsupervised stage alone (threshold-independent ranking
+    # quality). The hybrid decision is binary, so AUC applies to the IF score.
+    m["roc_auc"] = roc_auc_score(y_true, -scores) if len(np.unique(y_true)) > 1 else float("nan")
 
-    print("\n[OVERALL METRICS]")
+    # Per-stage attribution on the holdout
+    m_if = compute_metrics(y_true, (preds_if == -1).astype(int))
+    m_rf = compute_metrics(y_true, (preds_rf == 1).astype(int))
+
+    print("\n[OVERALL METRICS — HYBRID (holdout)]")
     print(f"  Accuracy            : {m['accuracy']:.4f}  ({m['accuracy']*100:.2f}%)")
     print(f"  Precision           : {m['precision']:.4f}")
     print(f"  Recall              : {m['recall']:.4f}")
     print(f"  F1-Score            : {m['f1_score']:.4f}")
+    print(f"  IF ROC-AUC          : {m['roc_auc']:.4f}")
     print(f"  False Positive Rate : {m['false_positive_rate']:.4f}")
+    print(f"  IF gate             : score < {model.offset_:.4f} -> anomaly")
     print(f"  TP={m['tp']}  TN={m['tn']}  FP={m['fp']}  FN={m['fn']}")
+    print("\n[STAGE BREAKDOWN]")
+    print(f"  IsolationForest alone : acc={m_if['accuracy']:.4f}  P={m_if['precision']:.4f}  R={m_if['recall']:.4f}")
+    print(f"  RandomForest alone    : acc={m_rf['accuracy']:.4f}  P={m_rf['precision']:.4f}  R={m_rf['recall']:.4f}")
 
     print("\n[TIMING]")
     print(f"  Detection time  : {detection_time:.3f}s  ({len(df_clean):,} records)")
@@ -204,7 +227,7 @@ def evaluate():
 
     rows = []
     for sc in SCENARIOS:
-        r = run_scenario(sc, model, scaler)
+        r = run_scenario(sc, model, rf, scaler)
         rows.append(r)
         ok = "YES" if r["correct"] else "NO "
         print(f"{r['id']:<4} {r['type']:<10} {r['expected']:<5} {r['predicted']:<5} "
@@ -216,11 +239,14 @@ def evaluate():
 
     os.makedirs(REPORTS, exist_ok=True)
     pd.DataFrame(rows).to_csv(os.path.join(REPORTS, "scenario_results.csv"),  index=False)
-    pd.DataFrame([{**m, "detection_time_s": round(detection_time,4),
+    stage = {f"if_{k}": m_if[k] for k in ("accuracy", "precision", "recall")}
+    stage.update({f"rf_{k}": m_rf[k] for k in ("accuracy", "precision", "recall")})
+    pd.DataFrame([{**m, **stage, "holdout_rows": len(df_clean),
+                   "detection_time_s": round(detection_time,4),
                    "scenario_correct": correct, "scenario_total": len(SCENARIOS)}
                   ]).to_csv(os.path.join(REPORTS, "metrics_summary.csv"), index=False)
 
-    print(f"\nReports → {REPORTS}/")
+    print(f"\nReports -> {REPORTS}/")
     print("=" * W)
     return m, rows
 

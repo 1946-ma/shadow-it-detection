@@ -14,6 +14,27 @@ from ml.load_cicids import FEATURE_COLS
 
 ARTIFACTS_PATH = os.path.join(os.path.dirname(__file__), "artifacts")
 
+# Heavy-tailed features (spans of 6+ orders of magnitude). Without a log
+# transform, MinMaxScaler squashes 99% of their values into a sliver near 0
+# and the IsolationForest can no longer split meaningfully on them.
+# Packet-length means and Init_Win bytes are bounded (MTU / 65535) and are
+# left linear.
+LOG_FEATURES = [
+    "Flow Duration",
+    "Total Fwd Packets",
+    "Total Backward Packets",
+    "Total Length of Fwd Packets",
+    "Total Length of Bwd Packets",
+    "Flow Bytes/s",
+    "Flow Packets/s",
+    "Flow IAT Mean",
+    "FIN Flag Count",
+    "SYN Flag Count",
+    "RST Flag Count",
+    "PSH Flag Count",
+    "ACK Flag Count",
+]
+
 
 # ── Step 1: Clean ─────────────────────────────────────────────────────────────
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,13 +48,24 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-# ── Step 2: Extract feature matrix ────────────────────────────────────────────
+# ── Step 2: Log-transform heavy-tailed features ───────────────────────────────
+def log_transform(df: pd.DataFrame) -> pd.DataFrame:
+    """Returns a copy — callers keep the raw values for reporting."""
+    df = df.copy()
+    for col in LOG_FEATURES:
+        if col in df.columns:
+            # clip: Init_Win-style sentinels (-1) and any negatives -> 0
+            df[col] = np.log1p(df[col].clip(lower=0))
+    return df
+
+
+# ── Step 3: Extract feature matrix ────────────────────────────────────────────
 def get_feature_matrix(df: pd.DataFrame):
     available = [c for c in FEATURE_COLS if c in df.columns]
     return df[available].values, available
 
 
-# ── Step 3: Normalise ──────────────────────────────────────────────────────────
+# ── Step 4: Normalise ──────────────────────────────────────────────────────────
 def scale(X: np.ndarray, fit: bool = True, scaler=None):
     if fit:
         scaler = MinMaxScaler()
@@ -44,7 +76,9 @@ def scale(X: np.ndarray, fit: bool = True, scaler=None):
 # ── Combined pipeline ──────────────────────────────────────────────────────────
 def preprocess(df: pd.DataFrame, fit: bool = True, scaler=None):
     df_clean = clean(df)
-    X, feature_names = get_feature_matrix(df_clean)
+    # log_transform works on a copy: df_clean keeps raw values because
+    # detect() reads bytes/duration from it for the dashboard records.
+    X, feature_names = get_feature_matrix(log_transform(df_clean))
     X_scaled, scaler = scale(X, fit=fit, scaler=scaler)
     return X_scaled, df_clean, scaler, feature_names
 
@@ -53,7 +87,7 @@ def preprocess(df: pd.DataFrame, fit: bool = True, scaler=None):
 def save_scaler(scaler, path: str = ARTIFACTS_PATH):
     os.makedirs(path, exist_ok=True)
     joblib.dump(scaler, os.path.join(path, "scaler.pkl"))
-    print(f"Scaler saved → {path}/scaler.pkl")
+    print(f"Scaler saved -> {path}/scaler.pkl")
 
 
 def load_scaler(path: str = ARTIFACTS_PATH):

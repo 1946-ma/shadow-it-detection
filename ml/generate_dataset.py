@@ -142,7 +142,7 @@ def generate_dataset(output_path="data/network_traffic.csv"):
     sw      = len([r for r in records if r["shadow_it_label"] == 1 and r["dst_domain"] in SHADOW_DOMAINS])
     hw      = shadow - sw
 
-    print(f"Dataset saved  → {output_path}")
+    print(f"Dataset saved  -> {output_path}")
     print(f"  Total records  : {total:,}")
     print(f"  Normal traffic : {normal_n:,}  ({normal_n/total*100:.1f}%)")
     print(f"  Shadow IT total: {shadow:,}   ({shadow/total*100:.1f}%)")

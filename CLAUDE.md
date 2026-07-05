@@ -248,28 +248,40 @@ Verify chain integrity: `GET /api/audit-logs/verify`
 
 ## ML Model Details
 
-### IsolationForest Configuration
+### Hybrid Two-Stage Detector (reworked 2026-07-04/05)
+The model went through three reworks in one session (each documented in git/session history): benign-only training → F1-calibrated threshold → log1p features took the pure IsolationForest from 65.2% to 76.9% accuracy; experiments showed pure-unsupervised ceilings out at ~90%, so the final architecture is a **hybrid**:
+
+- **Stage 1 — IsolationForest (unsupervised):** trained on BENIGN-only rows of the 70% train partition (500 trees, `max_samples=1.0`). Decision gate set at the 2nd percentile of benign training scores (`IF_GATE_FPR=0.02`, stored in `model.offset_`, currently -0.5246) — its job in the hybrid is high-confidence *novel* anomalies, including attack types the RF never saw.
+- **Stage 2 — RandomForest (supervised):** 100 trees trained on the full labeled 70% partition (`ml/artifacts/random_forest.pkl`, loaded via `load_rf()`; `detect()` degrades to IF-only if the artifact is missing).
+- **Hybrid rule:** flag = RF predicts attack **OR** IF score below gate. `anomaly_score`/risk levels always come from the IF score.
+
+**Train/holdout split:** `train_mask()` in `ml/load_cicids.py` — deterministic 70/30 split hashing flow-identity columns (IPs/ports/timestamp), stable across scripts and immune to outlier clipping. Both models train on the 70%; `evaluate.py` measures ONLY the 30% holdout.
+
+**Holdout metrics (44,778 unseen rows): accuracy 98.10%, precision 0.94, recall 0.99, F1 0.97, FPR 2.4%, IF ROC-AUC 0.89, 6/6 scenarios.** Stage breakdown: RF alone 99.6% acc, IF alone 82.6% acc (R=0.43 at the strict gate — by design).
 ```python
 IsolationForest(
-    n_estimators  = 200,
-    contamination = 0.27,   # 27% of training data treated as anomalous
-    max_samples   = 512,
+    n_estimators  = 500,
+    contamination = 0.05,   # initial cut only; replaced by the 2% FPR gate in offset_
+    max_samples   = 1.0,    # every benign training row per tree (big AUC win vs 512)
     random_state  = 42,
     n_jobs        = -1,
 )
+RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
 ```
 
 ### Risk Classification (empirically calibrated thirds)
-**Fixed 2026-07-01:** the old thresholds (-0.33/-0.17) assumed `score_samples()` spans the theoretical [-0.5, 0] range, but on this model's real data flagged records never score above ~-0.42 — so every detection landed in "high" (medium/low were mathematically unreachable). Thresholds are now tertiles of the actual anomaly_score distribution (measured from 10,253 real detections: range [-0.7903, -0.4212], p33=-0.5033, p66=-0.4544):
+Thresholds are tertiles of the IF anomaly_score distribution on hybrid-flagged records — NOT the theoretical `score_samples()` range. **Recalibrated 2026-07-05** for the hybrid model (measured from 13,141 flagged holdout records: range [-0.7645, -0.3619], p33=-0.5638, p66=-0.4594):
 ```python
-if score < -0.50:   return "high"    # bottom third — most anomalous
-if score < -0.45:   return "medium"  # middle third
+if score < -0.564:  return "high"    # bottom third — most anomalous
+if score < -0.459:  return "medium"  # middle third
 else:               return "low"     # top third — mildly anomalous
 ```
 Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_THRESHOLD_MEDIUM`) if the model is ever retrained — the score range is specific to this trained `.pkl`. Query: `SELECT percentile_cont(0.33/0.66) WITHIN GROUP (ORDER BY anomaly_score) FROM detections`.
 
 ### Feature Engineering
 20 CICIDS2017 features used. Key ones: Flow Duration, Total Fwd/Bwd Packets, Packet Length Mean/Std/Max, Flow Bytes/s, Flow Packets/s, SYN/FIN/RST/PSH/ACK flag counts, Init Win Fwd/Bwd, Subflow Fwd/Bwd Bytes, Active/Idle Mean.
+
+**Added 2026-07-04:** heavy-tailed features (durations, packet/byte counts and rates, flag counts — `LOG_FEATURES` in `ml/preprocess.py`) get `np.log1p(clip(x,0))` before MinMaxScaler; without it, 99% of their values were squashed into a sliver near 0 and the forest couldn't split on them (this lifted ROC-AUC 0.736 → 0.821). The transform is applied only to the feature matrix — `df_clean` keeps raw values because `detect()` reads bytes/duration from it for dashboard records. Bounded features (packet-length means, Init_Win bytes) stay linear.
 
 ### Live Capture (ml/collector.py)
 - `FlowRecord` — tracks bidirectional flow stats (canonical 5-tuple key: smaller IP first)

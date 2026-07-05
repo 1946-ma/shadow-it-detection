@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
 
-DATA_DIR = "data"
+# Absolute path so loading works regardless of the current working directory
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 
 CICIDS_FILES = [
     "Monday-WorkingHours.pcap_ISCX.csv",
@@ -66,6 +67,22 @@ LABEL_TO_TYPE = {
     "Web Attack – XSS":              "software",
     "Web Attack – Sql Injection":    "software",
 }
+
+
+def train_mask(df: pd.DataFrame) -> pd.Series:
+    """
+    Deterministic 70/30 train/holdout split, stable across scripts and runs.
+    Hashes flow-identity columns (IPs/ports/timestamp) rather than feature
+    values, so the assignment is immune to per-sample outlier clipping.
+    Rows lacking identity columns (e.g. synthetic data) all land in train.
+    """
+    id_cols = [c for c in ("Source IP", "Destination IP", "Source Port",
+                           "Destination Port", "Timestamp") if c in df.columns]
+    if not id_cols:
+        return pd.Series(True, index=df.index)
+    h = pd.util.hash_pandas_object(
+        df[id_cols].astype(str).agg("|".join, axis=1), index=False)
+    return pd.Series((h % 10) < 7, index=df.index)  # True = train (70%)
 
 
 def _read_file(path: str, nrows=None) -> pd.DataFrame:
@@ -192,4 +209,4 @@ if __name__ == "__main__":
     df = load_all()
     out = os.path.join(DATA_DIR, "cicids_combined.csv")
     df.to_csv(out, index=False)
-    print(f"\nSaved → {out}")
+    print(f"\nSaved -> {out}")
