@@ -350,13 +350,17 @@ Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_TH
 | `README update` | Setup guide updated |
 | `Live scan UX fixes` | Uptime format bug, risk thresholds, Analyze Now button |
 | `PDF security report` | reportlab 6-section report, `/api/report/generate` |
+| `feat: replace CRA frontend with Next.js` (9683b11) | Full frontend replacement: Next.js 14/TypeScript app rewired to the real Flask API, real login, admin-only Live Scan page built from scratch |
+| `fix: recalibrate risk thresholds...` (079ebc5) | Risk threshold recalibration + live-scan interface picker fix |
+| `feat: hybrid IF+RF detector` (7e41fc4) | ML overhaul 2026-07-04/05: benign-only training, log1p features, tuned IF, supervised RF stage, 70/30 holdout split — 98.1% holdout accuracy (was 65.2%) |
+| `feat: surface hybrid model metrics on the Reports page` (983029a) | /api/metrics + Reports page show ROC-AUC and IF/RF stage breakdown |
 
-**Not yet committed (as of last session, 2026-07-01):**
-- Full frontend replacement: the CRA app was deleted and replaced with a Next.js 14/TypeScript app (originally a separate downloaded prototype with mostly mock data), fully rewired to the real backend — `lib/api.ts` matches every real endpoint exactly (including fixing wrong paths the prototype had: `/audit` → `/api/audit-logs`, `/:id/review` → `/:id/resolve`), a real login flow replaced hardcoded demo credentials, Google OAuth/self-signup/password-reset/compliance-report were dropped (no backend support), and a new admin-only Live Scan page was built from scratch (the prototype had none). No backend changes were required. `npx next build` passes cleanly (14 routes, no type/lint errors).
+Working tree clean as of 2026-07-05. Detections table was cleared and repopulated with hybrid-scored rows the same day (old rows carried incompatible scores from previous models).
 
 ---
 
 ## What's Left / Possible Next Steps
-- Commit & push the Next.js frontend replacement
-- Final testing of all features end-to-end (in-browser verification pending for this session)
+- Push commits to the GitHub remote
+- Final testing of all features end-to-end in the browser (incl. new Reports page sections; restart Flask to pick up metrics.py changes)
+- Optional dissertation experiment: leave-one-attack-out (retrain RF without e.g. DDoS labels, show the IF gate still catches it) to evidence the novel-threat claim
 - Dissertation write-up / report referencing this codebase
