@@ -1,0 +1,18 @@
+# Sanctioned Services Allowlist
+# ------------------------------------------------------------------
+# One domain per line. A detection whose destination hostname matches
+# an entry (exactly, or as a subdomain of it) is suppressed: traffic
+# to a sanctioned service is authorized IT, not Shadow IT.
+#
+# Matching rules:
+#   anthropic.com     matches anthropic.com AND api.anthropic.com
+#   drive.google.com  matches drive.google.com but NOT google.com
+#
+# Entries only apply to flows where a hostname was extracted (TLS SNI
+# or HTTP Host header). Destinations known only by raw IP are never
+# suppressed — an unnamed service cannot be verified as sanctioned.
+#
+# Lines starting with # are comments; inline # comments are allowed.
+# ------------------------------------------------------------------
+
+anthropic.com          # Claude Code / AI-assisted development on this machine

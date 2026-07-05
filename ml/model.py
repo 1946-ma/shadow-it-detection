@@ -15,9 +15,33 @@ import joblib
 from ml.load_cicids import FEATURE_COLS, load_all, train_mask
 from ml.preprocess  import preprocess, save_scaler, load_scaler
 
-ARTIFACTS  = os.path.join(os.path.dirname(__file__), "artifacts")
-MODEL_PATH = os.path.join(ARTIFACTS, "isolation_forest.pkl")
-RF_PATH    = os.path.join(ARTIFACTS, "random_forest.pkl")
+ARTIFACTS      = os.path.join(os.path.dirname(__file__), "artifacts")
+MODEL_PATH     = os.path.join(ARTIFACTS, "isolation_forest.pkl")
+RF_PATH        = os.path.join(ARTIFACTS, "random_forest.pkl")
+ALLOWLIST_PATH = os.path.join(os.path.dirname(__file__), "sanctioned_services.txt")
+
+
+# ── Sanctioned-services allowlist ──────────────────────────────────────────────
+def load_allowlist(path: str = ALLOWLIST_PATH) -> set[str]:
+    """Sanctioned service domains, lowercased. Empty set if no file."""
+    if not os.path.exists(path):
+        return set()
+    entries = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            entry = line.split("#", 1)[0].strip().lower()
+            if entry:
+                entries.add(entry)
+    return entries
+
+
+def is_sanctioned(host: str, allowlist: set[str]) -> bool:
+    """True if host matches an allowlist entry exactly or as a subdomain.
+    Only meaningful for real hostnames — raw IPs won't match domain entries."""
+    if not allowlist or not host:
+        return False
+    host = host.lower().rstrip(".")
+    return any(host == e or host.endswith("." + e) for e in allowlist)
 
 
 # ── Risk classification ────────────────────────────────────────────────────────
@@ -184,6 +208,9 @@ def detect(records):
     if rf is not None:
         flagged |= rf.predict(X) == 1
 
+    allowlist  = load_allowlist()
+    suppressed = 0
+
     results = []
     for i, (flag, score) in enumerate(zip(flagged, scores)):
         if flag:
@@ -198,6 +225,12 @@ def detect(records):
             # fall back to the IP.
             sni = row.get("sni")
             dst = sni if isinstance(sni, str) and sni else str(row.get("Destination IP", "Unknown"))
+
+            # Sanctioned services are authorized IT, not Shadow IT — suppress.
+            # Only named destinations can match; raw IPs always alert.
+            if is_sanctioned(dst, allowlist):
+                suppressed += 1
+                continue
 
             results.append({
                 "src_ip":         str(row.get("Source IP",         "0.0.0.0")),
@@ -214,7 +247,8 @@ def detect(records):
             })
 
     elapsed = time.time() - t0
-    print(f"detect(): {len(results)} anomalies / {len(df_clean)} records in {elapsed:.3f}s")
+    note = f" ({suppressed} sanctioned-service flows suppressed)" if suppressed else ""
+    print(f"detect(): {len(results)} anomalies / {len(df_clean)} records in {elapsed:.3f}s{note}")
     return results, elapsed
 
 
