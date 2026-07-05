@@ -16,3 +16,4 @@
 # ------------------------------------------------------------------
 
 anthropic.com          # Claude Code / AI-assisted development on this machine
+dropbox.com            # sanctioned file-sharing service
