@@ -75,6 +75,7 @@ def stop():
 # ── GET /api/scan/status ───────────────────────────────────────────────────────
 @scan_bp.route("/status", methods=["GET"])
 @token_required
+@admin_required
 def status():
     col, err = _col()
     if err:
