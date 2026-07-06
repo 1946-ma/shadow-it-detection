@@ -3,7 +3,15 @@
 # No build and no ML training needed — clone the repo (for this file plus
 # db/*.sql, which initialize the database on first boot), then:
 #
-#   docker compose -f docker-compose.hub.yml up -d
+#   First run:
+#     docker compose -f docker-compose.hub.yml up -d
+#
+#   Update to the latest published images (the :latest tag is re-pushed in
+#   place, so an existing checkout won't pull new code without this):
+#     docker compose -f docker-compose.hub.yml pull
+#     docker compose -f docker-compose.hub.yml up -d
+#   (or in one step: docker compose -f docker-compose.hub.yml up -d --pull always)
+#
 #   Dashboard: http://localhost:3005   (admin/admin123 · viewer/viewer123)
 #   API:       http://localhost:5000
 #
