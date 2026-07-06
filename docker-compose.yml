@@ -14,6 +14,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: shadow_it_db
       POSTGRES_USER: postgres
@@ -31,6 +32,9 @@ services:
 
   backend:
     build: .
+    # retry until db is ready — also covers out-of-order starts from the
+    # Docker Desktop UI, which does not honor depends_on conditions
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -50,6 +54,7 @@ services:
       - ./ml/artifacts:/app/ml/artifacts:ro
 
   frontend:
+    restart: unless-stopped
     build:
       context: ./frontend
       args:
