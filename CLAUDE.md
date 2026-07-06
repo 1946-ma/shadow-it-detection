@@ -228,7 +228,7 @@ All protected routes require: `Authorization: Bearer <token>`
 | GET | `/api/scan/interfaces` | Admin | List Scapy network interfaces |
 | POST | `/api/scan/start` | Admin | `{ iface: "NPF_..." }` — starts packet capture |
 | POST | `/api/scan/stop` | Admin | Stops capture |
-| GET | `/api/scan/status` | Any | `{ running, packets_seen, flows_analysed, detections, uptime_s }` |
+| GET | `/api/scan/status` | Admin | `{ running, packets_seen, flows_analysed, detections, uptime_s }` (admin-only since 2026-07-06 — live-scan telemetry is admin surface) |
 | GET | `/api/scan/detections` | Admin | Drains anomaly buffer + saves to DB |
 | POST | `/api/scan/flush` | Admin | Force-analyse all active flows immediately |
 | GET | `/api/report/generate` | Admin | PDF binary download |
