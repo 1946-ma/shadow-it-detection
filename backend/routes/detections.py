@@ -1,4 +1,5 @@
 import sys, os, csv, io
+from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from flask import Blueprint, request, jsonify, g, Response
@@ -8,6 +9,42 @@ from backend.middleware.jwt_auth import token_required
 from backend.middleware.rbac import admin_required
 
 detections_bp = Blueprint("detections", __name__)
+
+
+class _BadParam(Exception):
+    pass
+
+
+def _valid_date(value, name):
+    """Accept an ISO date/datetime string; raise _BadParam otherwise.
+    Prevents malformed input from reaching the query as a 500."""
+    if value is None:
+        return None
+    try:
+        datetime.fromisoformat(value)
+        return value
+    except (ValueError, TypeError):
+        raise _BadParam(f"Invalid '{name}' — expected ISO date (YYYY-MM-DD)")
+
+
+# Whitelist filter values so only known-good tokens reach the query.
+_ALLOWED_RISK = {"high", "medium", "low"}
+_ALLOWED_TYPE = {"software", "hardware", "mixed", "none"}
+
+
+def _parse_filters(args):
+    risk = args.get("risk")
+    if risk is not None and risk not in _ALLOWED_RISK:
+        raise _BadParam("Invalid 'risk' filter")
+    stype = args.get("type")
+    if stype is not None and stype not in _ALLOWED_TYPE:
+        raise _BadParam("Invalid 'type' filter")
+    return {
+        "type":      stype,
+        "risk":      risk,
+        "date_from": _valid_date(args.get("date_from"), "date_from"),
+        "date_to":   _valid_date(args.get("date_to"), "date_to"),
+    }
 
 
 def _audit(user_id, action, target, ip):
@@ -28,12 +65,15 @@ def _serialize(row: dict) -> dict:
 @detections_bp.route("", methods=["GET"])
 @token_required
 def list_detections():
-    shadow_type = request.args.get("type")
-    risk_level  = request.args.get("risk")
-    date_from   = request.args.get("date_from")
-    date_to     = request.args.get("date_to")
-    page        = max(1, int(request.args.get("page", 1)))
-    per_page    = min(100, max(1, int(request.args.get("per_page", 20))))
+    try:
+        f = _parse_filters(request.args)
+        page     = max(1, int(request.args.get("page", 1)))
+        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
+    except (_BadParam, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    shadow_type, risk_level = f["type"], f["risk"]
+    date_from, date_to      = f["date_from"], f["date_to"]
 
     conds, params = [], []
     if shadow_type:
@@ -65,10 +105,13 @@ def list_detections():
 @detections_bp.route("/export", methods=["GET"])
 @token_required
 def export_detections():
-    shadow_type = request.args.get("type")
-    risk_level  = request.args.get("risk")
-    date_from   = request.args.get("date_from")
-    date_to     = request.args.get("date_to")
+    try:
+        f = _parse_filters(request.args)
+    except (_BadParam, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    shadow_type, risk_level = f["type"], f["risk"]
+    date_from, date_to      = f["date_from"], f["date_to"]
 
     conds, params = [], []
     if shadow_type:

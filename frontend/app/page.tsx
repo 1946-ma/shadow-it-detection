@@ -1,18 +1,13 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import Cookies from 'js-cookie'
+import { isAuthenticated } from '@/lib/auth'
 
 export default function RootPage() {
     const router = useRouter()
 
     useEffect(() => {
-        const token = Cookies.get('token')
-        if (token) {
-            router.push('/dashboard')
-        } else {
-            router.push('/login')
-        }
+        router.push(isAuthenticated() ? '/dashboard' : '/login')
     }, [router])
 
     return null

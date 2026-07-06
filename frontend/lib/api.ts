@@ -3,6 +3,9 @@ import Cookies from 'js-cookie'
 
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+    // Send the HttpOnly auth cookie on every request (and store it from the
+    // login response). No Authorization header is needed anymore.
+    withCredentials: true,
 })
 
 export function apiErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
@@ -13,12 +16,6 @@ export function apiErrorMessage(err: unknown, fallback = 'Something went wrong')
     return fallback
 }
 
-api.interceptors.request.use((config) => {
-    const token = Cookies.get('token')
-    if (token) config.headers.Authorization = `Bearer ${token}`
-    return config
-})
-
 api.interceptors.response.use(
     (r) => r,
     (err) => {
@@ -26,7 +23,7 @@ api.interceptors.response.use(
         // let the login page show that inline instead of force-reloading /login.
         const isLoginRequest = err.config?.url === '/api/auth/login'
         if (err.response?.status === 401 && !isLoginRequest) {
-            Cookies.remove('token')
+            // token cookie is HttpOnly (cleared by the server); drop UI cookies
             Cookies.remove('role')
             Cookies.remove('username')
             if (typeof window !== 'undefined') {

@@ -16,6 +16,24 @@ def get_connection():
     )
 
 
+def ensure_auth_schema():
+    """Ensure the JWT revocation (denylist) table exists. Fresh Docker
+    volumes get it from schema.sql; this is a fallback for databases created
+    before it was added. Checks existence first so it's a safe no-op under
+    the restricted role (which has USAGE but not CREATE on the schema)."""
+    exists = execute(
+        "SELECT 1 AS x FROM information_schema.tables WHERE table_name = 'token_denylist'",
+        fetch="one",
+    )
+    if not exists:
+        execute(
+            """CREATE TABLE token_denylist (
+                   jti        TEXT PRIMARY KEY,
+                   expires_at TIMESTAMPTZ NOT NULL
+               )"""
+        )
+
+
 def execute(query: str, params=None, fetch: str = None):
     """
     fetch = None  → execute only (INSERT/UPDATE/DELETE)

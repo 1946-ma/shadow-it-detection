@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
-import { getToken } from '@/lib/auth'
+import { isAuthenticated } from '@/lib/auth'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
     useEffect(() => {
-        if (!getToken()) router.push('/login')
+        if (!isAuthenticated()) router.push('/login')
     }, [router])
 
     return (

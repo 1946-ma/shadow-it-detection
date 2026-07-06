@@ -79,5 +79,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON users      TO shadow_it_app;
 -- Audit logs: append + read only — NO UPDATE, NO DELETE
 GRANT SELECT, INSERT ON audit_logs TO shadow_it_app;
 
+-- Token denylist: read/insert (logout revocation) + delete (expiry cleanup)
+GRANT SELECT, INSERT, DELETE ON token_denylist TO shadow_it_app;
+
 -- Sequences
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO shadow_it_app;

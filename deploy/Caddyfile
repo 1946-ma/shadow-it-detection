@@ -1,0 +1,21 @@
+# TLS-terminating reverse proxy for the Shadow IT Detection stack.
+# Caddy auto-provisions HTTPS: a locally-trusted cert for localhost, or a
+# real Let's Encrypt cert if you replace `localhost` with a public domain.
+#
+# Routes:
+#   /api/*  -> Flask backend (5000)
+#   /*      -> Next.js frontend (3000)
+# So the whole app is served same-origin over one HTTPS port — which also
+# lets the browser send the Secure auth cookie.
+
+localhost {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:5000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

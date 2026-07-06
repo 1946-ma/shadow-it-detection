@@ -38,6 +38,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     ip_address  VARCHAR(45)
 );
 
+-- Revoked JWTs (populated on logout). token_required() rejects any token
+-- whose jti is present here until it naturally expires.
+CREATE TABLE IF NOT EXISTS token_denylist (
+    jti         TEXT PRIMARY KEY,
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_detections_detected_at    ON detections(detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_detections_risk_level     ON detections(risk_level);
 CREATE INDEX IF NOT EXISTS idx_detections_shadow_it_type ON detections(shadow_it_type);

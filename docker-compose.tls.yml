@@ -1,0 +1,39 @@
+# TLS overlay — adds an HTTPS reverse proxy in front of the stack.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+#   Dashboard: https://localhost   (accept the local cert on first visit)
+#
+# Caddy terminates TLS and serves the whole app same-origin, so the auth
+# cookie is sent with Secure=true. The direct 5000/3005 ports are dropped
+# in favour of 443.
+services:
+  backend:
+    environment:
+      COOKIE_SECURE: "true"
+      # single same-origin front door -> browser talks only to https://localhost
+      CORS_ORIGINS: https://localhost
+    ports: !reset []          # no longer published directly
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://localhost
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -206,14 +206,27 @@ shadow-it-detection/
 
 ---
 
+## Security Hardening (2026-07-06)
+Applied a security-review batch (findings 3–8 + hygiene; secrets/default-creds handled separately by the author):
+- **Auth token in HttpOnly cookie** — `POST /api/auth/login` sets `token` as `HttpOnly; SameSite=Lax; Max-Age=exp` (add `Secure` via `COOKIE_SECURE=true` behind TLS). JS can no longer read the token (XSS-safe). `token_required` accepts the cookie OR an `Authorization: Bearer` header (header kept for curl/API/tests). Frontend axios uses `withCredentials: true`, stores no token in JS — the non-sensitive `role` cookie is the client-side routing signal.
+- **JWT revocation** — tokens carry a `jti`; `POST /api/auth/logout` inserts it into `token_denylist` (in `db/schema.sql`, granted in `immutability.sql`; `ensure_auth_schema()` is a check-first fallback for old volumes). `token_required` rejects revoked tokens. So logout now actually invalidates.
+- **Login rate limiting** — Flask-Limiter, `5/min` per IP on `/api/auth/login` (in-memory → per-gunicorn-worker, so effective ≈ limit×workers; point `storage_uri` at Redis for a hard cluster limit).
+- **Input validation** — `/api/detections` + `/export` validate `date_from/date_to` as ISO and whitelist `risk`/`type` → `400` instead of a `500`.
+- **No info leaks** — `run-detection` and a global error handler return generic messages and log details server-side.
+- **Debug off by default** — Flask dev server needs explicit `FLASK_DEBUG=true`; never on in prod (gunicorn).
+- **TLS option** — `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build` adds a Caddy HTTPS reverse proxy (`deploy/Caddyfile`), serves same-origin on 443, sets `COOKIE_SECURE=true`.
+- Known remaining (author's call): secrets still in committed compose files; default `admin/admin123` seed creds.
+
+---
+
 ## API Reference
 
-All protected routes require: `Authorization: Bearer <token>`
+Protected routes accept the auth token via an **HttpOnly cookie** (browser, set at login) or an `Authorization: Bearer <token>` header (API clients).
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | POST | `/api/auth/login` | Public | Returns `{ token, user }` |
-| POST | `/api/auth/logout` | Any | Writes audit log |
+| POST | `/api/auth/logout` | Any | Revokes the token (denylist) + clears cookie + audit log |
 | GET | `/api/detections` | Any | `?page=1&per_page=20&risk=high&type=software&date_from=&date_to=` |
 | GET | `/api/detections/:id` | Any | Single detection |
 | PATCH | `/api/detections/:id/resolve` | Admin | Toggle is_resolved |
