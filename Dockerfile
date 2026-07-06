@@ -26,4 +26,5 @@ COPY db/ db/
 # (see docker-compose.yml volumes)
 
 EXPOSE 5000
-CMD ["sh", "-c", "python db/seed.py && gunicorn --workers 2 --bind 0.0.0.0:5000 'backend.app:create_app()'"]
+# exec: gunicorn becomes PID 1 and receives SIGTERM -> graceful shutdown
+CMD ["sh", "-c", "python db/seed.py && exec gunicorn --workers 2 --bind 0.0.0.0:5000 'backend.app:create_app()'"]
