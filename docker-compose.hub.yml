@@ -1,0 +1,63 @@
+# Shadow IT Detection Framework — team deployment from Docker Hub
+# Author: Jeffrey Sampson Ennin <jeffreysampsonennin@gmail.com> · UMaT
+# No build and no ML training needed — clone the repo (for this file plus
+# db/*.sql, which initialize the database on first boot), then:
+#
+#   docker compose -f docker-compose.hub.yml up -d
+#   Dashboard: http://localhost:3005   (admin/admin123 · viewer/viewer123)
+#   API:       http://localhost:5000
+#
+# The backend image ships WITH the trained ML artifacts baked in.
+# Not available in this mode:
+#   - Run Detection (needs the ~850MB CICIDS2017 CSVs; uncomment the data
+#     volume below and place the CSVs in ./data to enable it)
+#   - Live Scan (host-only in any Docker mode — containers cannot capture
+#     the host's network adapters)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shadow_it_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_docker_2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/immutability.sql:/docker-entrypoint-initdb.d/02-immutability.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shadow_it_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    image: jeffreyjr/shadow-it-backend:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: shadow_it_db
+      DB_USER: shadow_it_app
+      DB_PASSWORD: sh4d0w_app_2026
+      JWT_SECRET: change-this-to-a-long-random-secret-for-production
+      JWT_EXPIRY_HOURS: "8"
+      FLASK_ENV: production
+    ports:
+      - "5000:5000"
+    # volumes:
+    #   - ./data:/app/data:ro   # CICIDS2017 CSVs — enables Run Detection
+
+  frontend:
+    image: jeffreyjr/shadow-it-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3005:3000"
+
+volumes:
+  pgdata:

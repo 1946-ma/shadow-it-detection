@@ -2,6 +2,11 @@
 # Build context: repo root. See docker-compose.yml for the full stack.
 FROM python:3.14-slim
 
+LABEL org.opencontainers.image.title="Shadow IT Detection — Backend" \
+      org.opencontainers.image.description="AI-driven Shadow IT detection: hybrid IsolationForest + RandomForest, Flask REST API. BSc Cybersecurity final year project, UMaT." \
+      org.opencontainers.image.authors="Jeffrey Sampson Ennin <jeffreysampsonennin@gmail.com>" \
+      org.opencontainers.image.source="https://github.com/1946-ma/shadow-it-detection"
+
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 

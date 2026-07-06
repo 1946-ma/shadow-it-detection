@@ -15,6 +15,12 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 FROM node:20-alpine
+
+LABEL org.opencontainers.image.title="Shadow IT Detection — Frontend" \
+      org.opencontainers.image.description="Next.js dashboard for the AI-driven Shadow IT Detection Framework. BSc Cybersecurity final year project, UMaT." \
+      org.opencontainers.image.authors="Jeffrey Sampson Ennin <jeffreysampsonennin@gmail.com>" \
+      org.opencontainers.image.source="https://github.com/1946-ma/shadow-it-detection"
+
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app ./

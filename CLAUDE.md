@@ -128,6 +128,7 @@ docker compose up --build -d
 - **Ports:** frontend published on **3005** (host 3000 is in a Windows excluded port range on the dev machine; 3005 is in Flask's CORS whitelist). `NEXT_PUBLIC_API_URL` is baked at image build time (compose build arg) — it must be the URL the *browser* uses.
 - **Live Scan is host-only:** a container on Docker Desktop/Windows cannot see the host's network adapters. For live capture demos run Flask directly on the host as Administrator.
 - Docker DB is its own volume (`pgdata`) — separate data from the host PostgreSQL instance.
+- **Docker Hub (team access, since 2026-07-06):** public images `jeffreyjr/shadow-it-backend` (trained ML artifacts BAKED IN — no training needed) and `jeffreyjr/shadow-it-frontend`, with OCI author labels. Teammates: clone repo, `docker compose -f docker-compose.hub.yml up -d`. Re-push after model retrain: rebuild, overlay artifacts into the backend tag, `docker push` both (see scratchpad Dockerfile.artifacts pattern — overlay FROMs the compose-built backend image and COPYs ml/artifacts in, because .dockerignore excludes artifacts from the main build context).
 
 ---
 
