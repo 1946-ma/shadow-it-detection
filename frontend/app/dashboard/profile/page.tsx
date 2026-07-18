@@ -50,7 +50,7 @@ export default function ProfilePage() {
                     <div className="flex items-center justify-between py-3">
                         <span className="text-sm text-slate-500 dark:text-slate-400">Role</span>
                         <span className="px-3 py-1 rounded-full text-xs font-semibold capitalize"
-                            style={{ backgroundColor: role === 'admin' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)', color: role === 'admin' ? '#ef4444' : '#3b82f6' }}>
+                            style={{ backgroundColor: 'rgba(42,116,119,0.12)', color: '#2a7477' }}>
                             {role}
                         </span>
                     </div>

@@ -15,8 +15,8 @@
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
     /* Accent palette */
-    --accent-primary: #3b82f6;
-    --accent-glow: #60a5fa;
+    --accent-primary: #2a7477;
+    --accent-glow: #4a9ea1;
     --accent-danger: #ef4444;
     --accent-warning: #f59e0b;
     --accent-success: #10b981;
@@ -38,7 +38,7 @@ html:not(.dark) {
     --bg-surface: rgba(15, 23, 42, 0.04);
     --bg-surface-hover: rgba(15, 23, 42, 0.08);
     --glass-bg: rgba(255, 255, 255, 0.98);
-    --glass-border: rgba(59, 130, 246, 0.35);
+    --glass-border: rgba(42, 116, 119, 0.35);
     --glass-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
     --text-primary: #0f172a;
     --text-muted: #1f2937;
@@ -61,14 +61,14 @@ body {
 
 html.dark body {
     background-image:
-        radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 20%, rgba(42, 116, 119, 0.12) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.10) 0%, transparent 60%),
         radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
 }
 
 html:not(.dark) body {
     background-image:
-        radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 20%, rgba(42, 116, 119, 0.06) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
 }
 
@@ -88,7 +88,7 @@ html:not(.dark) body {
 }
 
 .glow-blue {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 20px rgba(42, 116, 119, 0.4);
 }
 
 .glow-red {
@@ -112,7 +112,7 @@ select {
     background-color: rgba(255, 255, 255, 0.05) !important;
     color: #e2e8f0 !important;
     color-scheme: dark !important;
-    accent-color: #3b82f6 !important;
+    accent-color: #2a7477 !important;
 }
 
 select option {
@@ -124,7 +124,7 @@ html:not(.dark) select {
     background-color: #f1f5f9 !important;
     color: #0f172a !important;
     color-scheme: light !important;
-    accent-color: #3b82f6 !important;
+    accent-color: #2a7477 !important;
     border: 1px solid #cbd5e1 !important;
 }
 
@@ -139,7 +139,7 @@ select option:hover {
 }
 
 select option:checked {
-    background-color: #3b82f6 !important;
+    background-color: #2a7477 !important;
     color: #ffffff !important;
 }
 
@@ -217,14 +217,14 @@ html:not(.dark) aside nav a div {
 }
 
 html:not(.dark) aside nav a div:hover {
-    background: rgba(59, 130, 246, 0.08) !important;
-    color: #1d4ed8 !important;
+    background: rgba(42, 116, 119, 0.08) !important;
+    color: #1f5658 !important;
 }
 
 html:not(.dark) aside nav a div[class*="bg-blue"] {
-    background: rgba(59, 130, 246, 0.12) !important;
-    color: #1d4ed8 !important;
-    border-color: #3b82f6 !important;
+    background: rgba(42, 116, 119, 0.12) !important;
+    color: #1f5658 !important;
+    border-color: #2a7477 !important;
 }
 
 /* Navigation icons */
@@ -334,7 +334,7 @@ html:not(.dark) table tr:hover {
 /* ──────────────────────────────────────────────────────────────── */
 
 html:not(.dark) button {
-    color: #374151 !important;
+    /* color intentionally not forced — elements set their own (teal-minimal theme) */
 }
 
 html:not(.dark) button:hover {
@@ -344,11 +344,11 @@ html:not(.dark) button:hover {
 /* Blue primary buttons */
 html:not(.dark) button[class*="bg-blue"],
 html:not(.dark) button[class*="text-blue"] {
-    color: #3b82f6 !important;
+    color: #2a7477 !important;
 }
 
 html:not(.dark) button[class*="border-blue"] {
-    border-color: rgba(59, 130, 246, 0.3) !important;
+    border-color: rgba(42, 116, 119, 0.3) !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -366,11 +366,11 @@ html:not(.dark) span[class*="bg-amber"] {
 /* ──────────────────────────────────────────────────────────────── */
 
 html:not(.dark) a {
-    color: #3b82f6 !important;
+    /* color intentionally not forced — links set their own (teal-minimal theme) */
 }
 
 html:not(.dark) a:hover {
-    color: #1d4ed8 !important;
+    color: #1f5658 !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -407,7 +407,7 @@ html:not(.dark) [class*="Card"] {
 html:not(.dark) .card:hover,
 html:not(.dark) .content-card:hover,
 html:not(.dark) [class*="card"]:hover {
-    border-color: rgba(59, 130, 246, 0.30) !important;
+    border-color: rgba(42, 116, 119, 0.30) !important;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09) !important;
 }
 
@@ -424,8 +424,8 @@ html:not(.dark) [class*="item-row"] {
 
 html:not(.dark) .ranked-item:hover,
 html:not(.dark) .domain-item:hover {
-    border-color: rgba(59, 130, 246, 0.20) !important;
-    background: rgba(59, 130, 246, 0.03) !important;
+    border-color: rgba(42, 116, 119, 0.20) !important;
+    background: rgba(42, 116, 119, 0.03) !important;
 }
 
 /* ─ 5. TABLE DIVIDERS ─ */
@@ -446,7 +446,7 @@ html:not(.dark) .table-row {
 }
 
 html:not(.dark) tbody tr:hover {
-    background: rgba(59, 130, 246, 0.03) !important;
+    background: rgba(42, 116, 119, 0.03) !important;
 }
 
 /* ─ 6. SEARCH BAR BORDER ─ */
@@ -459,8 +459,8 @@ html:not(.dark) .topbar input {
 
 html:not(.dark) .search-bar:focus,
 html:not(.dark) input[type="search"]:focus {
-    border-color: rgba(59, 130, 246, 0.50) !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10) !important;
+    border-color: rgba(42, 116, 119, 0.50) !important;
+    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.10) !important;
     outline: none !important;
 }
 
@@ -517,8 +517,8 @@ html:not(.dark) input.bg-slate-100.dark\:bg-white\/5 {
 }
 
 html:not(.dark) input.w-full.px-4.py-3.rounded-lg.bg-slate-100:focus {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10) !important;
+    border-color: #2a7477 !important;
+    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.10) !important;
     outline: none !important;
 }
 
@@ -536,16 +536,16 @@ html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium {
 }
 
 html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium:hover {
-    background: rgba(59, 130, 246, 0.06) !important;
-    border-color: rgba(59, 130, 246, 0.30) !important;
-    color: #1d4ed8 !important;
+    background: rgba(42, 116, 119, 0.06) !important;
+    border-color: rgba(42, 116, 119, 0.30) !important;
+    color: #1f5658 !important;
 }
 
 html:not(.dark) button.bg-blue-600.text-white,
 html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium.bg-blue-600 {
-    background: #3b82f6 !important;
+    background: #2a7477 !important;
     color: #ffffff !important;
-    border-color: #3b82f6 !important;
+    border-color: #2a7477 !important;
 }
 
 /* ─ 5. AUDIT LOG ENTRY ROWS ─ */
@@ -557,34 +557,34 @@ html:not(.dark) .glass.p-5 {
 }
 
 html:not(.dark) .glass.p-5:hover {
-    border-color: rgba(59, 130, 246, 0.25) !important;
+    border-color: rgba(42, 116, 119, 0.25) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
 }
 
 /* Action type text colors */
 html:not(.dark) span.text-blue-400,
 html:not(.dark) .text-blue-400 {
-    color: #2563eb !important;
+    color: #2a7477 !important;
 }
 
 html:not(.dark) span.text-purple-400,
 html:not(.dark) .text-purple-400 {
-    color: #7c3aed !important;
+    color: #6b7a78 !important;
 }
 
 html:not(.dark) span.text-amber-400,
 html:not(.dark) .text-amber-400 {
-    color: #d97706 !important;
+    color: #6b7a78 !important;
 }
 
 html:not(.dark) span.text-red-400,
 html:not(.dark) .text-red-400 {
-    color: #dc2626 !important;
+    color: #1c2624 !important;
 }
 
 html:not(.dark) span.text-emerald-400,
 html:not(.dark) .text-emerald-400 {
-    color: #16a34a !important;
+    color: #2a7477 !important;
 }
 
 /* "on" connector text */
@@ -604,7 +604,7 @@ html:not(.dark) .text-xs.text-slate-700.dark\:text-slate-500 {
 }
 
 html:not(.dark) span.text-slate-300 {
-    color: #3b82f6 !important;
+    color: #2a7477 !important;
 }
 
 /* ─ 6. ACTION BADGE PILLS ─ */
@@ -620,36 +620,36 @@ html:not(.dark) span.inline-flex.items-center.rounded-full.text-xs.font-medium.b
 
 /* Login badge */
 html:not(.dark) span.bg-blue-500\/15.text-blue-400 {
-    color: #2563eb !important;
-    border-color: #2563eb !important;
-    background: rgba(37, 99, 235, 0.06) !important;
+    color: #2a7477 !important;
+    border-color: #2a7477 !important;
+    background: rgba(42, 116, 119, 0.06) !important;
 }
 
 /* View badge */
 html:not(.dark) span.bg-purple-500\/15.text-purple-400 {
-    color: #7c3aed !important;
-    border-color: #7c3aed !important;
+    color: #6b7a78 !important;
+    border-color: #6b7a78 !important;
     background: rgba(124, 58, 237, 0.06) !important;
 }
 
 /* Update badge */
 html:not(.dark) span.bg-amber-500\/15.text-amber-400 {
-    color: #d97706 !important;
-    border-color: #d97706 !important;
+    color: #6b7a78 !important;
+    border-color: #6b7a78 !important;
     background: rgba(217, 119, 6, 0.06) !important;
 }
 
 /* Delete badge */
 html:not(.dark) span.bg-red-500\/15.text-red-400 {
-    color: #dc2626 !important;
-    border-color: #dc2626 !important;
+    color: #1c2624 !important;
+    border-color: #1c2624 !important;
     background: rgba(220, 38, 38, 0.06) !important;
 }
 
 /* Create badge */
 html:not(.dark) span.bg-emerald-500\/15.text-emerald-400 {
-    color: #16a34a !important;
-    border-color: #16a34a !important;
+    color: #2a7477 !important;
+    border-color: #2a7477 !important;
     background: rgba(22, 163, 74, 0.06) !important;
 }
 
@@ -688,8 +688,8 @@ html:not(.dark) [class*="bg-"][class*="\/10"].flex.items-center.justify-center {
 
 /* Color-specific icon boxes */
 html:not(.dark) .bg-blue-500\/10 {
-    background: rgba(37, 99, 235, 0.08) !important;
-    color: #2563eb !important;
+    background: rgba(42, 116, 119, 0.08) !important;
+    color: #2a7477 !important;
 }
 
 html:not(.dark) .bg-slate-500\/10 {
@@ -699,22 +699,22 @@ html:not(.dark) .bg-slate-500\/10 {
 
 html:not(.dark) .bg-emerald-500\/10 {
     background: rgba(16, 163, 74, 0.08) !important;
-    color: #16a34a !important;
+    color: #2a7477 !important;
 }
 
 html:not(.dark) .bg-amber-500\/10 {
     background: rgba(217, 119, 6, 0.08) !important;
-    color: #d97706 !important;
+    color: #6b7a78 !important;
 }
 
 html:not(.dark) .bg-red-500\/10 {
     background: rgba(220, 38, 38, 0.08) !important;
-    color: #dc2626 !important;
+    color: #1c2624 !important;
 }
 
 html:not(.dark) .bg-purple-500\/10 {
     background: rgba(124, 58, 237, 0.08) !important;
-    color: #7c3aed !important;
+    color: #6b7a78 !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -732,36 +732,36 @@ html:not(.dark) .p-4.rounded-lg.bg-white\/3 {
 
 html:not(.dark) .border.border-white\/10:hover,
 html:not(.dark) .p-4.rounded-lg.bg-white\/3:hover {
-    border-color: rgba(59, 130, 246, 0.25) !important;
-    background: rgba(59, 130, 246, 0.02) !important;
+    border-color: rgba(42, 116, 119, 0.25) !important;
+    background: rgba(42, 116, 119, 0.02) !important;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05) !important;
 }
 
 /* ─ 2. RANKED NUMBER BADGES (the circles with 1,2,3,4,5) ─ */
 /* Blue badges — Flagged Domains */
 html:not(.dark) .bg-blue-500\/20.text-blue-400 {
-    background: rgba(37, 99, 235, 0.12) !important;
-    color: #2563eb !important;
-    border: 1px solid rgba(37, 99, 235, 0.20) !important;
+    background: rgba(42, 116, 119, 0.12) !important;
+    color: #2a7477 !important;
+    border: 1px solid rgba(42, 116, 119, 0.20) !important;
 }
 
 /* Orange badges — Unknown Devices */
 html:not(.dark) .bg-orange-500\/20.text-orange-400 {
     background: rgba(234, 88, 12, 0.10) !important;
-    color: #ea580c !important;
+    color: #7c8b89 !important;
     border: 1px solid rgba(234, 88, 12, 0.20) !important;
 }
 
 /* ─ 3. COUNT NUMBERS ON RIGHT ─ */
 /* Blue counts — Flagged Domains */
 html:not(.dark) .text-sm.font-bold.text-blue-400 {
-    color: #2563eb !important;
+    color: #2a7477 !important;
     font-weight: 700 !important;
 }
 
 /* Orange counts — Unknown Devices */
 html:not(.dark) .text-sm.font-bold.text-orange-400 {
-    color: #ea580c !important;
+    color: #7c8b89 !important;
     font-weight: 700 !important;
 }
 
@@ -780,13 +780,13 @@ html:not(.dark) .h-1\.5.bg-white\/5.overflow-hidden.border {
 
 /* Blue fill — Flagged Domains */
 html:not(.dark) .bg-blue-500\/60.rounded-full {
-    background: #3b82f6 !important;
+    background: #2a7477 !important;
     border-radius: 999px !important;
 }
 
 /* Orange fill — Unknown Devices */
 html:not(.dark) .bg-orange-500\/60.rounded-full {
-    background: #ea580c !important;
+    background: #7c8b89 !important;
     border-radius: 999px !important;
 }
 
@@ -812,7 +812,7 @@ html:not(.dark) .border.border-emerald-500\/20 {
 }
 
 html:not(.dark) .from-emerald-500\/10:hover {
-    border-color: rgba(59, 130, 246, 0.22) !important;
+    border-color: rgba(42, 116, 119, 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -826,7 +826,7 @@ html:not(.dark) .border.border-blue-500\/20 {
 }
 
 html:not(.dark) .from-blue-500\/10:hover {
-    border-color: rgba(59, 130, 246, 0.22) !important;
+    border-color: rgba(42, 116, 119, 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -840,7 +840,7 @@ html:not(.dark) .border.border-purple-500\/20 {
 }
 
 html:not(.dark) .from-purple-500\/10:hover {
-    border-color: rgba(59, 130, 246, 0.22) !important;
+    border-color: rgba(42, 116, 119, 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -854,7 +854,7 @@ html:not(.dark) .border.border-cyan-500\/20 {
 }
 
 html:not(.dark) .from-cyan-500\/10:hover {
-    border-color: rgba(59, 130, 246, 0.22) !important;
+    border-color: rgba(42, 116, 119, 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -876,33 +876,33 @@ html:not(.dark) .text-sm.font-semibold.text-cyan-400 {
 /* ─ 7. STATUS INDICATOR DOTS & VALUES ─ */
 /* Active dot — green */
 html:not(.dark) .bg-emerald-500.animate-pulse {
-    background: #16a34a !important;
+    background: #2a7477 !important;
     box-shadow: 0 0 6px rgba(22, 163, 74, 0.4) !important;
 }
 
 html:not(.dark) .text-emerald-400 {
-    color: #16a34a !important;
+    color: #2a7477 !important;
 }
 
 /* Connected dot — cyan */
 html:not(.dark) .bg-cyan-500.animate-pulse {
-    background: #0891b2 !important;
+    background: #2a7477 !important;
     box-shadow: 0 0 6px rgba(8, 145, 178, 0.4) !important;
 }
 
 html:not(.dark) .text-cyan-400 {
-    color: #0891b2 !important;
+    color: #2a7477 !important;
 }
 
 /* Records Processed value */
 html:not(.dark) .text-blue-400 {
-    color: #2563eb !important;
+    color: #2a7477 !important;
     font-weight: 700 !important;
 }
 
 /* Engine Version value */
 html:not(.dark) .text-purple-400 {
-    color: #7c3aed !important;
+    color: #6b7a78 !important;
     font-weight: 700 !important;
 }
 
@@ -923,9 +923,9 @@ html:not(.dark) .glass.p-6 {
 /* Hardcoded semantic colors that work in both light and dark modes */
 
 .badge-login {
-    background: rgba(37, 99, 235, 0.15);
-    color: #1d4ed8;
-    border: 1px solid rgba(37, 99, 235, 0.25);
+    background: rgba(42, 116, 119, 0.15);
+    color: #1f5658;
+    border: 1px solid rgba(42, 116, 119, 0.25);
 }
 
 .badge-logout {
@@ -936,43 +936,43 @@ html:not(.dark) .glass.p-6 {
 
 .badge-view {
     background: rgba(109, 40, 217, 0.15);
-    color: #6d28d9;
+    color: #6b7a78;
     border: 1px solid rgba(109, 40, 217, 0.25);
 }
 
 .badge-update {
     background: rgba(180, 83, 9, 0.15);
-    color: #b45309;
+    color: #6b7a78;
     border: 1px solid rgba(180, 83, 9, 0.30);
 }
 
 .badge-delete {
     background: rgba(185, 28, 28, 0.15);
-    color: #b91c1c;
+    color: #1c2624;
     border: 1px solid rgba(185, 28, 28, 0.25);
 }
 
 .badge-create {
     background: rgba(21, 128, 61, 0.15);
-    color: #15803d;
+    color: #2a7477;
     border: 1px solid rgba(21, 128, 61, 0.25);
 }
 
 .badge-detection {
     background: rgba(8, 145, 178, 0.15);
-    color: #0e7490;
+    color: #2a7477;
     border: 1px solid rgba(8, 145, 178, 0.25);
 }
 
 .badge-access-denied {
     background: rgba(185, 28, 28, 0.10);
-    color: #b91c1c;
+    color: #1c2624;
     border: 1px solid rgba(185, 28, 28, 0.20);
 }
 
 /* Dark mode variants — slightly brighter */
 .dark .badge-login {
-    background: rgba(37, 99, 235, 0.20);
+    background: rgba(42, 116, 119, 0.20);
     color: #93c5fd;
 }
 
@@ -1008,11 +1008,11 @@ html:not(.dark) .glass.p-6 {
 
 /* ─ 2. OUTCOME COLORS (BOTH MODES) ─ */
 .outcome-success {
-    color: #15803d;
+    color: #2a7477;
 }
 
 .outcome-denied {
-    color: #b91c1c;
+    color: #1c2624;
 }
 
 .dark .outcome-success {
@@ -1093,7 +1093,7 @@ html:not(.dark) .audit-stat-value {
 
 /* Source IP color in light mode */
 html:not(.dark) .text-sm.font-mono.text-blue-600.dark\:text-blue-400 {
-    color: #2563eb !important;
+    color: #2a7477 !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -1207,21 +1207,21 @@ html:not(.dark) .search-results-dropdown button:hover {
 
 /* Active (keyboard-highlighted) result row */
 html:not(.dark) .search-result-active {
-    background: rgba(59, 130, 246, 0.08) !important;
+    background: rgba(42, 116, 119, 0.08) !important;
 }
 
 .dark .search-result-active {
-    background: rgba(59, 130, 246, 0.15) !important;
+    background: rgba(42, 116, 119, 0.15) !important;
 }
 
 /* Active icon */
 html:not(.dark) .search-result-active .search-result-icon {
-    background: rgba(59, 130, 246, 0.15) !important;
-    color: #2563eb !important;
+    background: rgba(42, 116, 119, 0.15) !important;
+    color: #2a7477 !important;
 }
 
 .dark .search-result-active .search-result-icon {
-    background: rgba(59, 130, 246, 0.2) !important;
+    background: rgba(42, 116, 119, 0.2) !important;
     color: #93c5fd !important;
 }
 
@@ -1308,7 +1308,7 @@ html:not(.dark) .search-no-results {
     font-size: 11px;
     font-weight: 600;
     background: rgba(22, 163, 74, 0.12);
-    color: #15803d;
+    color: #2a7477;
     border: 1px solid rgba(22, 163, 74, 0.25);
 }
 
@@ -1317,3 +1317,277 @@ html:not(.dark) .search-no-results {
     color: #86efac;
     border-color: rgba(21, 128, 61, 0.3);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   WINCK DESIGN SYSTEM
+   Self-contained palette + utilities for the redesigned login and
+   dashboard. Deliberately theme-independent (explicit colors, unique
+   class names that avoid the [class*="card"] / .glass light-mode
+   overrides above) so these surfaces render identically in dark/light.
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+    /* Teal-Minimal palette (black & white + single teal accent) */
+    --wk-navy:      #14201f;   /* ink / dark surfaces */
+    --wk-navy-bg:   #101817;   /* login page canvas (near-black) */
+    --wk-indigo:    #2a7477;   /* PRIMARY teal (buttons, active, links) */
+    --wk-indigo-2:  #1f5658;   /* teal hover */
+    --wk-coral:     #1c2624;   /* high-risk / strongest ink */
+    --wk-gold:      #9aa7a5;   /* medium / muted gray */
+    --wk-pink:      #e2e6e4;   /* light gray */
+    --wk-peri:      #7fb0b2;   /* light teal */
+    --wk-ink:       #14201f;
+    --wk-muted:     #7c8b89;
+    --wk-line:      #e6e9e8;
+    --wk-canvas:    #f5f6f6;
+    --wk-white:     #ffffff;
+}
+
+/* Jersey 10 Charted pixel font for headings / display only */
+.font-display,
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3 {
+    font-family: "Jersey 10 Charted", "Inter", monospace !important;
+    letter-spacing: 0.5px;
+    font-weight: 400;
+}
+
+/* Panels (avoid the substring "card"/"item" to dodge global overrides) */
+.wk-panel {
+    background: var(--wk-white);
+    border: 1px solid var(--wk-line);
+    border-radius: 22px;
+    box-shadow: 0 10px 30px rgba(13, 16, 48, 0.06);
+}
+
+/* Dark auth (login) inputs — override the light-theme global input rules */
+html:not(.dark) .auth-dark input[type="text"],
+html:not(.dark) .auth-dark input[type="password"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+html:not(.dark) .auth-dark input::placeholder { color: rgba(255, 255, 255, 0.42) !important; }
+html:not(.dark) .auth-dark input[type="text"]:focus,
+html:not(.dark) .auth-dark input[type="password"]:focus {
+    border-color: #33888a !important;
+    box-shadow: 0 0 0 3px rgba(51, 136, 138, 0.25) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+}
+/* Keep white text white on the dark login (beat the .text-white→ink safety rule) */
+html:not(.dark) .auth-dark .text-white,
+html:not(.dark) .auth-dark h1 { color: #ffffff !important; }
+/* Clean sans heading on the dark login (not the pixel display font) */
+html:not(.dark) .auth-dark h1 { font-family: "Inter", sans-serif !important; letter-spacing: -0.5px; }
+
+.wk-tab {
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--wk-muted);
+    background: var(--wk-white);
+    border: 1px solid var(--wk-line);
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+.wk-tab:hover { border-color: var(--wk-peri); color: var(--wk-ink); }
+.wk-tab-active {
+    color: #fff;
+    background: var(--wk-indigo);
+    border-color: var(--wk-indigo);
+}
+
+.wk-input {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--wk-line);
+    background: #fbfbfd;
+    color: var(--wk-ink);
+    font-size: 0.9rem;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    outline: none;
+}
+.wk-input::placeholder { color: #b6bacb; }
+.wk-input:focus {
+    border-color: var(--wk-indigo);
+    box-shadow: 0 0 0 4px rgba(42, 116, 119, 0.12);
+    background: #fff;
+}
+
+.wk-btn-primary {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    background: var(--wk-indigo);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.12s ease;
+}
+.wk-btn-primary:hover:not(:disabled) { background: var(--wk-indigo-2); }
+.wk-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Segmented "domino" progress bar */
+.wk-seg {
+    flex: 1;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(13, 16, 48, 0.08);
+}
+.wk-seg-on { background: var(--wk-navy); }
+.wk-seg-gold-on { background: #1c1e33; }
+
+/* ══════════════════════════════════════════════════════════════════
+   WINCK GLOBAL LIGHT THEME  (app is light-only; these apply app-wide
+   and are placed last to win over the legacy light-mode overrides)
+   ══════════════════════════════════════════════════════════════════ */
+html:not(.dark) {
+    --bg-base: #f5f6f6;
+    --text-primary: #14201f;
+    --text-muted: #7c8b89;
+    --accent-primary: #2a7477;
+    --glass-bg: #ffffff;
+    --glass-border: #e6e9e8;
+}
+html:not(.dark) body {
+    background: #f5f6f6 !important;
+    background-image: none !important;
+    color: #14201f;
+}
+
+/* Panels — every GlassCard / .glass across all pages */
+html:not(.dark) .glass {
+    background: #ffffff !important;
+    border: 1px solid #e6e9e8 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 30px rgba(13, 16, 48, 0.06) !important;
+}
+html:not(.dark) .glass:hover {
+    border-color: #d7d9e8 !important;
+    box-shadow: 0 14px 36px rgba(13, 16, 48, 0.09) !important;
+}
+html:not(.dark) .glass h1,
+html:not(.dark) .glass h2,
+html:not(.dark) .glass h3 { color: #14201f !important; }
+
+/* ── Primary blue → WINCK indigo ── */
+html:not(.dark) .bg-blue-600,
+html:not(.dark) .bg-blue-500 { background-color: #2a7477 !important; }
+html:not(.dark) .hover\:bg-blue-500:hover,
+html:not(.dark) .hover\:bg-blue-600:hover { background-color: #1f5658 !important; }
+html:not(.dark) .text-blue-300,
+html:not(.dark) .text-blue-400,
+html:not(.dark) .text-blue-500,
+html:not(.dark) .text-blue-600 { color: #2a7477 !important; }
+html:not(.dark) .bg-blue-500\/10,
+html:not(.dark) .bg-blue-500\/15,
+html:not(.dark) .bg-blue-500\/20,
+html:not(.dark) .bg-blue-500\/30 { background-color: rgba(42, 116, 119, 0.12) !important; }
+html:not(.dark) .bg-blue-500\/40 { background-color: rgba(42, 116, 119, 0.18) !important; }
+html:not(.dark) .border-blue-500\/20,
+html:not(.dark) .border-blue-500\/25,
+html:not(.dark) .border-blue-500\/30,
+html:not(.dark) .border-blue-500\/40 { border-color: rgba(42, 116, 119, 0.25) !important; }
+html:not(.dark) .bg-blue-500\/60 { background-color: #2a7477 !important; }
+
+/* ── Red → coral ── */
+html:not(.dark) .text-red-300,
+html:not(.dark) .text-red-400,
+html:not(.dark) .text-red-500,
+html:not(.dark) .text-red-600 { color: #1c2624 !important; }
+html:not(.dark) .bg-red-500,
+html:not(.dark) .bg-red-600 { background-color: #1c2624 !important; }
+html:not(.dark) .bg-red-500\/10,
+html:not(.dark) .bg-red-500\/15,
+html:not(.dark) .bg-red-500\/20 { background-color: rgba(28, 38, 36, 0.12) !important; }
+html:not(.dark) .bg-red-500\/60,
+html:not(.dark) .bg-red-500\/70 { background-color: #1c2624 !important; }
+html:not(.dark) .border-red-500\/20,
+html:not(.dark) .border-red-500\/30 { border-color: rgba(28, 38, 36, 0.28) !important; }
+
+/* ── Amber / Yellow → gold (text darkened for contrast on white) ── */
+html:not(.dark) .text-amber-300,
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-yellow-400,
+html:not(.dark) .text-yellow-500 { color: #6b7a78 !important; }
+html:not(.dark) .bg-amber-500,
+html:not(.dark) .bg-amber-500\/60,
+html:not(.dark) .bg-amber-500\/70 { background-color: #9aa7a5 !important; }
+html:not(.dark) .bg-amber-500\/10,
+html:not(.dark) .bg-amber-500\/15,
+html:not(.dark) .bg-amber-500\/20 { background-color: rgba(124, 139, 137, 0.18) !important; }
+html:not(.dark) .border-amber-500\/20,
+html:not(.dark) .border-amber-500\/30 { border-color: rgba(124, 139, 137, 0.40) !important; }
+
+/* ── Emerald → WINCK green ── */
+html:not(.dark) .text-emerald-300,
+html:not(.dark) .text-emerald-400 { color: #1f9d57 !important; }
+html:not(.dark) .bg-emerald-500,
+html:not(.dark) .bg-emerald-500\/60,
+html:not(.dark) .bg-emerald-500\/70 { background-color: #2a7477 !important; }
+html:not(.dark) .bg-emerald-500\/10,
+html:not(.dark) .bg-emerald-500\/15,
+html:not(.dark) .bg-emerald-500\/20 { background-color: rgba(42, 116, 119, 0.14) !important; }
+html:not(.dark) .border-emerald-500\/20,
+html:not(.dark) .border-emerald-500\/30 { border-color: rgba(42, 116, 119, 0.30) !important; }
+
+/* ── Purple → periwinkle-indigo · Orange → warm coral ── */
+html:not(.dark) .text-purple-300,
+html:not(.dark) .text-purple-400 { color: #6b7a78 !important; }
+html:not(.dark) .bg-purple-500,
+html:not(.dark) .bg-purple-500\/60 { background-color: #6b7a78 !important; }
+html:not(.dark) .bg-purple-500\/10,
+html:not(.dark) .bg-purple-500\/15,
+html:not(.dark) .bg-purple-500\/20 { background-color: rgba(124, 139, 137, 0.12) !important; }
+html:not(.dark) .border-purple-500\/20,
+html:not(.dark) .border-purple-500\/30 { border-color: rgba(124, 139, 137, 0.25) !important; }
+html:not(.dark) .text-orange-300,
+html:not(.dark) .text-orange-400 { color: #7c8b89 !important; }
+html:not(.dark) .bg-orange-500,
+html:not(.dark) .bg-orange-500\/60,
+html:not(.dark) .bg-orange-500\/70 { background-color: #7c8b89 !important; }
+html:not(.dark) .bg-orange-500\/10,
+html:not(.dark) .bg-orange-500\/15,
+html:not(.dark) .bg-orange-500\/20 { background-color: rgba(124, 139, 137, 0.14) !important; }
+html:not(.dark) .border-orange-500\/20,
+html:not(.dark) .border-orange-500\/30 { border-color: rgba(124, 139, 137, 0.28) !important; }
+
+/* Cyan (system status) → indigo family for consistency */
+html:not(.dark) .text-cyan-400 { color: #2a7477 !important; }
+html:not(.dark) .bg-cyan-500\/10,
+html:not(.dark) .bg-cyan-500\/20 { background-color: rgba(42, 116, 119, 0.10) !important; }
+
+/* Inputs → WINCK focus ring */
+html:not(.dark) input:focus,
+html:not(.dark) textarea:focus,
+html:not(.dark) select:focus {
+    border-color: #2a7477 !important;
+    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.12) !important;
+    outline: none !important;
+}
+
+/* ── Text safety on the new light surfaces ──
+   Legacy markup used `text-white` for primary text on dark cards. On white
+   that would vanish, so default it to ink — then RESTORE white wherever it
+   sits on a solid colored background (buttons/badges) or gradient.
+   NOTE: opacity variants like `text-white/85` are a different class token and
+   are intentionally left white (used on the login's indigo blocks). */
+html:not(.dark) .text-white { color: #14201f !important; }
+html:not(.dark) .text-slate-200,
+html:not(.dark) .text-slate-300 { color: #475569 !important; }
+
+html:not(.dark) .bg-blue-600.text-white,
+html:not(.dark) .bg-blue-500.text-white,
+html:not(.dark) .bg-indigo-600.text-white,
+html:not(.dark) .bg-red-500.text-white,
+html:not(.dark) .bg-red-600.text-white,
+html:not(.dark) .bg-emerald-500.text-white,
+html:not(.dark) .bg-emerald-600.text-white,
+html:not(.dark) .bg-amber-500.text-white,
+html:not(.dark) .bg-orange-500.text-white,
+html:not(.dark) .bg-purple-500.text-white,
+html:not(.dark) [class*="bg-gradient"].text-white { color: #ffffff !important; }
