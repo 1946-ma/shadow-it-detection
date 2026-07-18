@@ -3,61 +3,59 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { useIsDark, chartTooltipStyles } from '@/lib/useIsDark'
-import GlassCard from '@/components/ui/GlassCard'
-import AnimatedCounter from '@/components/ui/AnimatedCounter'
-import { StatusIcon } from '@/components/ui/StatusIcon'
 import {
-    TrendingUp, CheckCircle2, Cpu, Code2, Globe, Smartphone, Play, Download, Loader2,
+    Sparkles, Play, Download, Loader2, ArrowUpRight, ShieldAlert,
+    Smartphone, BarChart3, Wifi, AlertCircle, Monitor, Package,
+    FileText, Code2, Cpu, ChevronDown,
 } from 'lucide-react'
 import { statsApi, detectionsApi, reportApi, apiErrorMessage } from '@/lib/api'
 import { fetchAllDetections, groupByApplication } from '@/lib/aggregate'
 import { isAdmin } from '@/lib/auth'
 import type { DashboardSummary, TimelinePoint, TopOffender } from '@/lib/types'
 
-function formatTimestamp(iso: string) {
+const WK = {
+    navy: '#14201f', indigo: '#2a7477', coral: '#ff5a6e', gold: '#9aa7a5',
+    pink: '#e2e6e4', peri: '#7fb0b2', ink: '#14201f', muted: '#7c8b89',
+    line: '#e6e9e8', canvas: '#f5f6f6', white: '#ffffff',
+}
+
+const TABS = ['Timeline', 'Risk', 'Types', 'Top Domains', 'Top Devices'] as const
+type Tab = typeof TABS[number]
+
+function fmtTs(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function DashboardPage() {
     const router = useRouter()
-    const isDark = useIsDark()
-    const tt = chartTooltipStyles(isDark)
     const admin = isAdmin()
 
-    const [summary, setSummary] = useState<DashboardSummary | null>(null)
+    const [summary, setSummary]   = useState<DashboardSummary | null>(null)
     const [timeline, setTimeline] = useState<TimelinePoint[]>([])
     const [topDevices, setTopDevices] = useState<TopOffender[]>([])
     const [topDomains, setTopDomains] = useState<{ name: string; count: number; percentage: number }[]>([])
-    const [loading, setLoading] = useState(true)
-    const [days, setDays] = useState<7 | 30>(7)
-    const [running, setRunning] = useState(false)
+    const [loading, setLoading]   = useState(true)
+    const [days, setDays]         = useState<7 | 30>(7)
+    const [tab, setTab]           = useState<Tab>('Timeline')
+    const [running, setRunning]   = useState(false)
     const [exporting, setExporting] = useState(false)
     const [actionMsg, setActionMsg] = useState('')
 
     const fetchData = useCallback(async () => {
         try {
             const [statsRes, timelineRes, offendersRes] = await Promise.all([
-                statsApi.get(),
-                statsApi.timeline(days),
-                statsApi.topOffenders(5),
+                statsApi.get(), statsApi.timeline(days), statsApi.topOffenders(5),
             ])
             setSummary(statsRes.data)
             setTimeline(timelineRes.data)
             setTopDevices(offendersRes.data)
-
             const { rows } = await fetchAllDetections(300)
             const apps = groupByApplication(rows)
             const totalApp = apps.reduce((s, a) => s + a.count, 0) || 1
-            setTopDomains(
-                apps.slice(0, 5).map((a) => ({
-                    name: a.dst_domain,
-                    count: a.count,
-                    percentage: Math.round((a.count / totalApp) * 100),
-                }))
-            )
+            setTopDomains(apps.slice(0, 5).map(a => ({
+                name: a.dst_domain, count: a.count, percentage: Math.round((a.count / totalApp) * 100),
+            })))
         } catch (err) {
             console.error('Failed to fetch dashboard data:', err)
         } finally {
@@ -67,22 +65,19 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchData()
-        const interval = setInterval(fetchData, 30000)
-        return () => clearInterval(interval)
+        const t = setInterval(fetchData, 30000)
+        return () => clearInterval(t)
     }, [fetchData])
 
     const handleRunDetection = async () => {
-        setRunning(true)
-        setActionMsg('')
+        setRunning(true); setActionMsg('')
         try {
             const res = await detectionsApi.runDetection()
             setActionMsg(res.data.message)
             await fetchData()
         } catch (err) {
             setActionMsg(apiErrorMessage(err, 'Run detection failed'))
-        } finally {
-            setRunning(false)
-        }
+        } finally { setRunning(false) }
     }
 
     const handleExportReport = async () => {
@@ -91,309 +86,401 @@ export default function DashboardPage() {
             const res = await reportApi.generate()
             const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
             const a = document.createElement('a')
-            a.href = url
-            a.download = 'shadow-it-security-report.pdf'
-            a.click()
+            a.href = url; a.download = 'shadow-it-security-report.pdf'; a.click()
             URL.revokeObjectURL(url)
-        } catch (err) {
-            console.error(err)
-        } finally {
-            setExporting(false)
-        }
+        } catch (err) { console.error(err) } finally { setExporting(false) }
     }
 
     if (loading || !summary) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <div className="text-slate-900 dark:text-slate-500 animate-pulse">Loading dashboard...</div>
+            <div className="-m-4 md:-m-6 p-4 md:p-6 min-h-[calc(100vh-64px)] flex items-center justify-center" style={{ background: WK.canvas }}>
+                <div className="animate-pulse" style={{ color: WK.muted }}>Loading dashboard…</div>
             </div>
         )
     }
 
     const byType = summary.by_type || {}
     const byRisk = summary.by_risk || {}
-
-    const summaryStats = [
-        { label: 'Total Detections',   value: summary.total_detections, icon: TrendingUp,   colorKey: 'blue',   status: null },
-        { label: 'Unresolved',         value: summary.unresolved,       icon: null,         colorKey: 'red',    status: 'high' as const },
-        { label: 'Resolved',           value: summary.resolved,         icon: CheckCircle2, colorKey: 'low',    status: null },
-        { label: 'Software Shadow IT', value: byType.software ?? 0,     icon: Code2,        colorKey: 'purple', status: null },
-        { label: 'Hardware Shadow IT', value: byType.hardware ?? 0,     icon: Cpu,          colorKey: 'orange', status: null },
-        { label: 'High Risk',          value: byRisk.high ?? 0,         icon: null,         colorKey: 'high',   status: 'high' as const },
-    ]
-
-    const COUNTER_CLASS: Record<string, string> = {
-        blue: 'text-blue-400', red: 'text-red-400', orange: 'text-orange-400',
-        purple: 'text-purple-400', high: 'text-red-400', medium: 'text-amber-400', low: 'text-emerald-400',
-    }
-
-    const getRiskColor = (risk: string | null) => {
-        switch (risk) {
-            case 'high': return { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400', status: 'high' as const }
-            case 'medium': return { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400', status: 'medium' as const }
-            case 'low': return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400', status: 'low' as const }
-            default: return { bg: 'bg-slate-500/10', border: 'border-slate-500/20', text: 'text-slate-400', status: 'low' as const }
-        }
-    }
-
     const total = summary.total_detections || 1
-    const trendData = timeline.map((t) => ({ period: t.day.slice(5), value: t.count }))
-    const trendMax = Math.max(...trendData.map((d) => d.value), 1)
+    const resolvedPct = Math.round((summary.resolved / total) * 100)
+    const highPct     = Math.round(((byRisk.high ?? 0) / total) * 100)
+    const trend = timeline.map(t => ({ period: t.day.slice(5), value: t.count }))
+    const trendMax = Math.max(...trend.map(d => d.value), 1)
 
     return (
-        <div className="space-y-6">
-            {admin && (
-                <div className="flex items-center justify-end gap-3">
-                    {actionMsg && <span className="text-xs text-slate-500 dark:text-slate-400">{actionMsg}</span>}
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleExportReport} disabled={exporting}
-                        className="text-xs px-4 py-2 rounded-lg bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-white/10 border border-white/10 transition-all font-medium flex items-center gap-2 disabled:opacity-50">
-                        {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Export Report
-                    </motion.button>
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleRunDetection} disabled={running}
-                        className="text-xs px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all font-medium flex items-center gap-2 disabled:opacity-50">
-                        {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />} Run Detection
-                    </motion.button>
-                </div>
-            )}
+        <div className="-m-4 md:-m-6 p-4 md:p-6 min-h-[calc(100vh-64px)]" style={{ background: WK.canvas, color: WK.ink }}>
+            {/* Title */}
+            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-extrabold flex items-center gap-2.5" style={{ color: WK.ink }}>
+                    Shadow IT
+                    <span className="inline-flex items-center justify-center rounded-full px-2 py-1" style={{ background: WK.gold }}>
+                        <Sparkles className="w-4 h-4" style={{ color: WK.ink }} />
+                    </span>
+                    Overview
+                </h1>
+                {actionMsg && <span className="text-xs" style={{ color: WK.muted }}>{actionMsg}</span>}
+            </div>
 
-            {/* Summary Cards Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                {summaryStats.map((stat) => (
-                    <motion.div key={stat.label} whileHover={{ y: -4 }}>
-                        <GlassCard className="p-4 h-full hover:bg-white/10 transition-all cursor-pointer group">
-                            <div className="flex flex-col h-full">
-                                <div className="flex items-start justify-between mb-2 text-2xl">
-                                    {stat.status
-                                        ? <StatusIcon status={stat.status} size="lg" />
-                                        : stat.icon && <stat.icon className="w-6 h-6" />}
-                                </div>
-                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-500 mb-2 flex-1">{stat.label}</p>
-                                <AnimatedCounter
-                                    value={stat.value}
-                                    className={`text-2xl font-bold ${COUNTER_CLASS[stat.colorKey] ?? 'text-slate-400'}`}
-                                />
-                            </div>
-                        </GlassCard>
-                    </motion.div>
+            {/* Tabs */}
+            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+                {TABS.map(t => (
+                    <button key={t} onClick={() => setTab(t)} className={`wk-tab ${tab === t ? 'wk-tab-active' : ''}`}>{t}</button>
                 ))}
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Risk Distribution */}
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-6">Risk Distribution</h3>
-                    <div className="space-y-4">
-                        {[
-                            { label: 'High Risk', value: byRisk.high ?? 0, textCls: 'text-red-400', barCls: 'bg-red-500/60' },
-                            { label: 'Medium Risk', value: byRisk.medium ?? 0, textCls: 'text-amber-400', barCls: 'bg-amber-500/60' },
-                            { label: 'Low Risk', value: byRisk.low ?? 0, textCls: 'text-emerald-400', barCls: 'bg-emerald-500/60' },
-                        ].map(item => (
-                            <div key={item.label}>
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-medium text-slate-900 dark:text-slate-400">{item.label}</span>
-                                    <span className={`text-sm font-bold ${item.textCls}`}>{item.value} ({Math.round((item.value / total) * 100)}%)</span>
-                                </div>
-                                <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.round((item.value / total) * 100)}%` }}
-                                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                                        className={`h-full ${item.barCls} rounded-full`}
-                                    />
-                                </div>
-                            </div>
-                        ))}
+            {/* Main grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* LEFT (2 cols) */}
+                <div className="lg:col-span-2 space-y-5">
+                    {/* KPI row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <KpiCard label="Resolved" value={summary.resolved} sub={`/ ${total.toLocaleString()}`}
+                            pct={resolvedPct} accent="#2a7477" />
+                        <KpiCard label="High Risk" value={byRisk.high ?? 0} sub={`/ ${total.toLocaleString()}`}
+                            pct={highPct} accent="#1c2624" />
+                        <PromoCard admin={admin} running={running} exporting={exporting}
+                            onRun={handleRunDetection} onExport={handleExportReport} />
                     </div>
-                </GlassCard>
 
-                {/* Shadow IT Type Breakdown */}
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-6">Shadow IT Types</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                            <div className="flex items-center gap-3">
-                                <Code2 className="w-6 h-6 text-purple-400" />
-                                <div>
-                                    <p className="text-sm font-medium text-white">Software</p>
-                                    <p className="text-xs text-slate-900 dark:text-slate-500">Unauthorized apps</p>
-                                </div>
+                    {/* Detail panel (driven by tabs) */}
+                    <div className="wk-panel p-6">
+                        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                            <div className="flex items-center gap-2.5">
+                                <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#e2efef' }}>
+                                    <BarChart3 className="w-4 h-4" style={{ color: WK.indigo }} />
+                                </span>
+                                <h3 className="text-lg font-bold" style={{ color: WK.ink }}>{tab}</h3>
                             </div>
-                            <p className="text-2xl font-bold text-purple-400">{byType.software ?? 0}</p>
+                            {tab === 'Timeline' && (
+                                <div className="flex items-center gap-2">
+                                    <Legend color={WK.indigo} label="Detections" />
+                                    <button onClick={() => setDays(days === 7 ? 30 : 7)}
+                                        className="flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-1.5"
+                                        style={{ background: WK.white, border: `1px solid ${WK.line}`, color: WK.ink }}>
+                                        {days} days <ChevronDown className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
-                        <div className="flex items-center justify-between p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                            <div className="flex items-center gap-3">
-                                <Cpu className="w-6 h-6 text-orange-400" />
-                                <div>
-                                    <p className="text-sm font-medium text-white">Hardware</p>
-                                    <p className="text-xs text-slate-900 dark:text-slate-500">Unauthorized devices</p>
-                                </div>
-                            </div>
-                            <p className="text-2xl font-bold text-orange-400">{byType.hardware ?? 0}</p>
-                        </div>
-                        {byType.mixed != null && (
-                            <div className="flex items-center justify-between p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <div className="flex items-center gap-3">
-                                    <Smartphone className="w-6 h-6 text-amber-400" />
-                                    <div>
-                                        <p className="text-sm font-medium text-white">Mixed</p>
-                                        <p className="text-xs text-slate-900 dark:text-slate-500">Hardware + software</p>
-                                    </div>
-                                </div>
-                                <p className="text-2xl font-bold text-amber-400">{byType.mixed}</p>
-                            </div>
-                        )}
-                    </div>
-                </GlassCard>
 
-                {/* Detection Timeline — real /api/stats/timeline */}
-                <GlassCard className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Detection Timeline</h3>
-                        <div className="flex gap-2">
-                            <button onClick={() => setDays(7)}
-                                className={`px-2 py-1 text-xs rounded transition-all ${days === 7 ? 'bg-blue-500/40 text-blue-300' : 'text-slate-900 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                                7 days
-                            </button>
-                            <button onClick={() => setDays(30)}
-                                className={`px-2 py-1 text-xs rounded transition-all ${days === 30 ? 'bg-blue-500/40 text-blue-300' : 'text-slate-900 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                                30 days
-                            </button>
-                        </div>
+                        {tab === 'Timeline' && <CapsuleChart data={trend} max={trendMax} />}
+                        {tab === 'Risk' && <RiskView byRisk={byRisk} total={total} />}
+                        {tab === 'Types' && <TypeView byType={byType} />}
+                        {tab === 'Top Domains' && <RankedList items={topDomains.map(d => ({ key: d.name, title: d.name, count: d.count, pct: d.percentage }))} accent={WK.indigo} empty="No sampled traffic yet" />}
+                        {tab === 'Top Devices' && <RankedList items={topDevices.map(d => ({ key: d.src_ip, title: d.src_ip, count: d.total, pct: Math.round((d.total / (topDevices[0]?.total || 1)) * 100), meta: `${d.open_count} open` }))} accent={WK.coral} mono empty="No offending devices yet" />}
                     </div>
-                    <ResponsiveContainer width="100%" height={128}>
-                        <BarChart data={trendData} barSize={days === 7 ? 18 : 8}>
-                            <XAxis dataKey="period" tick={{ fill: isDark ? '#64748b' : '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                            <YAxis hide domain={[0, trendMax * 1.2]} />
-                            <Tooltip contentStyle={tt.contentStyle} labelStyle={tt.labelStyle} itemStyle={tt.itemStyle} cursor={tt.cursor}
-                                formatter={(v: number) => [v, 'Detections']} />
-                            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                                {trendData.map((entry, idx) => (
-                                    <Cell key={idx} fill={entry.value === trendMax ? 'rgba(59,130,246,0.8)' : 'rgba(59,130,246,0.4)'} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </GlassCard>
-            </div>
-
-            {/* Recent Alerts Table — real */}
-            <GlassCard className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Recent Alerts</h3>
-                        <p className="text-xs text-slate-700 dark:text-slate-500 mt-1">Latest detected anomalies</p>
-                    </div>
-                    <Link href="/dashboard/alerts">
-                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                            className="text-xs px-4 py-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 transition-all font-medium">
-                            View All Alerts →
-                        </motion.button>
-                    </Link>
                 </div>
 
-                {summary.recent_alerts.length === 0 ? (
-                    <div className="text-center py-12">
-                        <p className="text-slate-900 dark:text-slate-500">No recent alerts</p>
+                {/* RIGHT (1 col) */}
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <TileLink href="/dashboard/reports" icon={BarChart3} label="Reports" />
+                        {admin
+                            ? <TileLink href="/dashboard/live-scan" icon={Wifi} label="Live Scan" />
+                            : <TileLink href="/dashboard/applications" icon={Package} label="Apps" />}
                     </div>
+
+                    <ResourceRow href="/dashboard/alerts" icon={AlertCircle} title="Alerts"
+                        desc="Review detected anomalies & resolve" />
+                    <ResourceRow href="/dashboard/devices" icon={Monitor} title="Devices"
+                        desc="Device inventory & risk scores" />
+                    <ResourceRow href="/dashboard/applications" icon={Package} title="Applications"
+                        desc="Destination services seen on the wire" />
+                    {admin && (
+                        <ResourceRow href="/dashboard/audit" icon={FileText} title="Audit Trail"
+                            desc="Immutable compliance activity log" />
+                    )}
+                </div>
+            </div>
+
+            {/* Recent alerts */}
+            <div className="wk-panel p-6 mt-5">
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2.5">
+                        <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#eef1f0' }}>
+                            <ShieldAlert className="w-4 h-4" style={{ color: WK.coral }} />
+                        </span>
+                        <h3 className="text-lg font-bold" style={{ color: WK.ink }}>Recent Alerts</h3>
+                    </div>
+                    <Link href="/dashboard/alerts" className="text-xs font-semibold flex items-center gap-1 rounded-lg px-3 py-1.5"
+                        style={{ background: WK.indigo, color: '#fff' }}>
+                        View all <ArrowUpRight className="w-3 h-3" />
+                    </Link>
+                </div>
+                {summary.recent_alerts.length === 0 ? (
+                    <p className="text-center py-10 text-sm" style={{ color: WK.muted }}>No recent alerts</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead className="border-b border-white/10">
-                                <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
-                                    <th className="text-left py-3 px-4">Timestamp</th>
-                                    <th className="text-left py-3 px-4">Source IP</th>
-                                    <th className="text-left py-3 px-4">Destination</th>
-                                    <th className="text-left py-3 px-4">Type</th>
-                                    <th className="text-left py-3 px-4">Risk Level</th>
-                                    <th className="text-left py-3 px-4">Status</th>
+                            <thead>
+                                <tr className="text-left" style={{ color: WK.muted }}>
+                                    {['Timestamp', 'Source IP', 'Destination', 'Type', 'Risk', 'Status'].map(h => (
+                                        <th key={h} className="pb-3 pr-4 text-xs font-semibold uppercase tracking-wide">{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {summary.recent_alerts.map((detection) => {
-                                    const riskConfig = getRiskColor(detection.risk_level)
-                                    return (
-                                        <motion.tr key={detection.id} whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-                                            onClick={() => router.push('/dashboard/alerts')}
-                                            className="border-b border-white/5 hover:bg-white/5 transition-all cursor-pointer">
-                                            <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatTimestamp(detection.detected_at)}</td>
-                                            <td className="py-3 px-4 text-xs font-mono text-slate-300">{detection.src_ip}</td>
-                                            <td className="py-3 px-4 text-xs text-slate-300">{detection.dst_domain || '—'}</td>
-                                            <td className="py-3 px-4 text-xs">
-                                                <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300">{detection.shadow_it_type || 'Unknown'}</span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${riskConfig.bg} border ${riskConfig.border}`}>
-                                                    <StatusIcon status={riskConfig.status} size="sm" /> {detection.risk_level?.toUpperCase()}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${detection.is_resolved ? 'bg-slate-500/20 text-slate-300' : 'bg-blue-500/20 text-blue-300'}`}>
-                                                    {detection.is_resolved ? 'RESOLVED' : 'OPEN'}
-                                                </span>
-                                            </td>
-                                        </motion.tr>
-                                    )
-                                })}
+                                {summary.recent_alerts.map(d => (
+                                    <tr key={d.id} onClick={() => router.push('/dashboard/alerts')}
+                                        className="cursor-pointer" style={{ borderTop: `1px solid ${WK.line}` }}>
+                                        <td className="py-3 pr-4 text-xs" style={{ color: WK.muted }}>{fmtTs(d.detected_at)}</td>
+                                        <td className="py-3 pr-4 text-xs font-mono" style={{ color: WK.ink }}>{d.src_ip}</td>
+                                        <td className="py-3 pr-4 text-xs" style={{ color: WK.ink }}>{d.dst_domain || '—'}</td>
+                                        <td className="py-3 pr-4"><Pill text={d.shadow_it_type || 'unknown'} bg="#e2efef" fg={WK.indigo} /></td>
+                                        <td className="py-3 pr-4"><RiskPill risk={d.risk_level} /></td>
+                                        <td className="py-3 pr-4">
+                                            <Pill text={d.is_resolved ? 'resolved' : 'open'}
+                                                bg={d.is_resolved ? '#eef1f0' : '#eef1f0'} fg={d.is_resolved ? WK.muted : WK.coral} />
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
                 )}
-            </GlassCard>
-
-            {/* Top Offenders — real */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                        <Globe className="w-5 h-5 text-blue-400" /> Top Flagged Destinations
-                    </h3>
-                    <div className="space-y-3">
-                        {topDomains.map((domain, idx) => (
-                            <motion.div key={domain.name} whileHover={{ x: 4 }}
-                                className="p-4 rounded-lg bg-white/3 border border-white/10 hover:border-white/20 transition-all hover:bg-white/5">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <span className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm font-bold text-blue-400">{idx + 1}</span>
-                                        <span className="text-sm font-medium text-white truncate max-w-[180px]">{domain.name}</span>
-                                    </div>
-                                    <span className="text-sm font-bold text-blue-400">{domain.count}</span>
-                                </div>
-                                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                                    <motion.div initial={{ width: 0 }} animate={{ width: `${domain.percentage}%` }} transition={{ duration: 0.6 }}
-                                        className="h-full bg-blue-500/60 rounded-full" />
-                                </div>
-                                <span className="text-xs text-slate-500 mt-2 inline-block">{domain.percentage}% of sampled traffic</span>
-                            </motion.div>
-                        ))}
-                    </div>
-                </GlassCard>
-
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                        <Smartphone className="w-5 h-5 text-orange-400" /> Top Offending Devices
-                    </h3>
-                    <div className="space-y-3">
-                        {topDevices.map((device, idx) => (
-                            <motion.div key={device.src_ip} whileHover={{ x: 4 }}
-                                className="p-4 rounded-lg bg-white/3 border border-white/10 hover:border-white/20 transition-all hover:bg-white/5">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <span className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-sm font-bold text-orange-400">{idx + 1}</span>
-                                        <span className="text-sm font-medium text-white font-mono">{device.src_ip}</span>
-                                    </div>
-                                    <span className="text-sm font-bold text-orange-400">{device.total}</span>
-                                </div>
-                                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10 flex">
-                                    <div className="h-full bg-red-500/70" style={{ width: `${(device.high_count / device.total) * 100}%` }} />
-                                    <div className="h-full bg-amber-500/70" style={{ width: `${(device.medium_count / device.total) * 100}%` }} />
-                                    <div className="h-full bg-emerald-500/70" style={{ width: `${(device.low_count / device.total) * 100}%` }} />
-                                </div>
-                                <span className="text-xs text-slate-500 mt-2 inline-block">{device.open_count} open · last seen {device.last_seen ? formatTimestamp(device.last_seen) : '—'}</span>
-                            </motion.div>
-                        ))}
-                    </div>
-                </GlassCard>
             </div>
         </div>
     )
+}
+
+/* ── KPI card with circular % + segmented progress ── */
+function KpiCard({ label, value, sub, pct, accent }: {
+    label: string; value: number; sub: string; pct: number; accent: string
+}) {
+    return (
+        <div className="wk-panel p-5">
+            <div className="flex items-start justify-between mb-3">
+                <span className="text-sm font-semibold" style={{ color: WK.muted }}>{label}</span>
+                <CirclePct pct={pct} track="#e9edec" fill={accent} />
+            </div>
+            <div className="flex items-baseline gap-1.5 mb-4">
+                <span className="text-4xl font-extrabold" style={{ color: WK.ink }}>{value.toLocaleString()}</span>
+                <span className="text-sm font-medium" style={{ color: WK.muted }}>{sub}</span>
+            </div>
+            <SegBar pct={pct} color={accent} />
+        </div>
+    )
+}
+
+function SegBar({ pct, color }: { pct: number; color: string }) {
+    const N = 8
+    const on = Math.round((pct / 100) * N)
+    return (
+        <div className="flex gap-1.5">
+            {Array.from({ length: N }).map((_, i) => (
+                <div key={i} className="wk-seg" style={i < on ? { background: color } : undefined} />
+            ))}
+        </div>
+    )
+}
+
+function CirclePct({ pct, track, fill }: { pct: number; track: string; fill: string }) {
+    const clamped = Math.max(0, Math.min(100, pct))
+    return (
+        <div className="relative flex items-center justify-center rounded-full px-2 py-1"
+            style={{ background: 'rgba(255,255,255,0.6)' }}>
+            <svg viewBox="0 0 36 36" width="26" height="26">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke={track} strokeWidth="5" />
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke={fill} strokeWidth="5"
+                    strokeDasharray={`${clamped} ${100 - clamped}`} strokeDashoffset={25} strokeLinecap="round" />
+            </svg>
+            <span className="ml-1.5 text-xs font-bold" style={{ color: WK.ink }}>{clamped}%</span>
+        </div>
+    )
+}
+
+/* ── Dark promo card ── */
+function PromoCard({ admin, running, exporting, onRun, onExport }: {
+    admin: boolean; running: boolean; exporting: boolean; onRun: () => void; onExport: () => void
+}) {
+    return (
+        <div className="rounded-[22px] p-5 flex flex-col justify-between relative overflow-hidden"
+            style={{ background: WK.indigo, minHeight: 170 }}>
+            <div className="absolute rounded-full" style={{ width: 120, height: 120, background: '#4a9ea1', opacity: 0.5, top: -30, right: -30 }} />
+            <p className="text-white font-bold text-lg leading-snug relative z-10">Strengthen your<br />security posture</p>
+            <div className="relative z-10 mt-4 space-y-2">
+                {admin ? (
+                    <>
+                        <button onClick={onRun} disabled={running}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+                            style={{ background: '#fff', color: WK.ink }}>
+                            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} Run Detection
+                        </button>
+                        <button onClick={onExport} disabled={exporting}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold text-white disabled:opacity-60"
+                            style={{ background: 'rgba(255,255,255,0.12)' }}>
+                            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Export Report
+                        </button>
+                    </>
+                ) : (
+                    <Link href="/dashboard/reports"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold"
+                        style={{ background: '#fff', color: WK.ink }}>
+                        View Reports <ArrowUpRight className="w-4 h-4" />
+                    </Link>
+                )}
+            </div>
+        </div>
+    )
+}
+
+/* ── Capsule bar chart ── */
+function CapsuleChart({ data, max }: { data: { period: string; value: number }[]; max: number }) {
+    if (data.length === 0) return <p className="text-sm py-8 text-center" style={{ color: WK.muted }}>No timeline data</p>
+    return (
+        <div className="flex items-end justify-between gap-2" style={{ height: 220 }}>
+            {data.map((d, i) => {
+                const h = Math.max(8, Math.round((d.value / max) * 170))
+                const isMax = d.value === max && d.value > 0
+                return (
+                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-2" style={{ height: '100%' }}>
+                        <div className="relative flex items-end justify-center" style={{ height: 180 }}>
+                            <div className="relative rounded-full flex items-end justify-center"
+                                style={{ width: 26, height: h, background: WK.indigo }}>
+                                {/* periwinkle inner pill */}
+                                <div className="rounded-full absolute" style={{ width: 14, height: Math.max(10, h * 0.45), background: WK.peri, bottom: 6 }} />
+                                {/* top dot */}
+                                <div className="rounded-full absolute" style={{ width: 8, height: 8, background: '#fff', top: 5, border: `2px solid ${WK.indigo}` }} />
+                                {isMax && (
+                                    <span className="absolute text-[10px] font-bold rounded-full px-1.5 py-0.5"
+                                        style={{ background: WK.indigo, color: '#fff', top: -22, whiteSpace: 'nowrap' }}>{d.value}</span>
+                                )}
+                            </div>
+                        </div>
+                        <span className="text-[11px] font-medium" style={{ color: WK.muted }}>{d.period}</span>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+/* ── Risk & Type views ── */
+function RiskView({ byRisk, total }: { byRisk: Partial<Record<string, number>>; total: number }) {
+    const rows = [
+        { label: 'High Risk', value: byRisk.high ?? 0, color: WK.coral },
+        { label: 'Medium Risk', value: byRisk.medium ?? 0, color: WK.gold },
+        { label: 'Low Risk', value: byRisk.low ?? 0, color: WK.peri },
+    ]
+    return (
+        <div className="space-y-5 py-2">
+            {rows.map(r => {
+                const pct = Math.round((r.value / total) * 100)
+                return (
+                    <div key={r.label}>
+                        <div className="flex justify-between mb-2 text-sm">
+                            <span className="font-medium" style={{ color: WK.ink }}>{r.label}</span>
+                            <span className="font-bold" style={{ color: WK.ink }}>{r.value} · {pct}%</span>
+                        </div>
+                        <div className="h-3 rounded-full overflow-hidden" style={{ background: '#e9edec' }}>
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }}
+                                className="h-full rounded-full" style={{ background: r.color }} />
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+function TypeView({ byType }: { byType: Partial<Record<string, number>> }) {
+    const rows = [
+        { label: 'Software', desc: 'Unauthorized apps', value: byType.software ?? 0, icon: Code2, bg: '#e2efef', fg: WK.indigo },
+        { label: 'Hardware', desc: 'Unauthorized devices', value: byType.hardware ?? 0, icon: Cpu, bg: '#eef1f0', fg: WK.coral },
+        ...(byType.mixed != null ? [{ label: 'Mixed', desc: 'Hardware + software', value: byType.mixed, icon: Smartphone, bg: '#eef1f0', fg: '#6b7a78' }] : []),
+    ]
+    return (
+        <div className="space-y-3 py-1">
+            {rows.map(r => (
+                <div key={r.label} className="flex items-center justify-between rounded-2xl px-4 py-3.5" style={{ background: r.bg }}>
+                    <div className="flex items-center gap-3">
+                        <r.icon className="w-5 h-5" style={{ color: r.fg }} />
+                        <div>
+                            <p className="text-sm font-semibold" style={{ color: WK.ink }}>{r.label}</p>
+                            <p className="text-xs" style={{ color: WK.muted }}>{r.desc}</p>
+                        </div>
+                    </div>
+                    <span className="text-2xl font-extrabold" style={{ color: r.fg }}>{r.value}</span>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/* ── Ranked list (domains / devices) ── */
+function RankedList({ items, accent, mono, empty }: {
+    items: { key: string; title: string; count: number; pct: number; meta?: string }[]
+    accent: string; mono?: boolean; empty: string
+}) {
+    if (items.length === 0) return <p className="text-sm py-8 text-center" style={{ color: WK.muted }}>{empty}</p>
+    return (
+        <div className="space-y-3 py-1">
+            {items.map((it, idx) => (
+                <div key={it.key} className="rounded-2xl px-4 py-3" style={{ background: '#f7f8f8', border: `1px solid ${WK.line}` }}>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                style={{ background: `${accent}22`, color: accent }}>{idx + 1}</span>
+                            <span className={`text-sm font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: WK.ink }}>{it.title}</span>
+                        </div>
+                        <span className="text-sm font-bold flex-shrink-0" style={{ color: accent }}>{it.count}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#e9edec' }}>
+                        <div className="h-full rounded-full" style={{ width: `${it.pct}%`, background: accent }} />
+                    </div>
+                    {it.meta && <span className="text-xs mt-1.5 inline-block" style={{ color: WK.muted }}>{it.meta}</span>}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/* ── Right column widgets ── */
+function TileLink({ href, icon: Icon, label }: { href: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; label: string }) {
+    return (
+        <Link href={href} className="wk-panel p-5 flex flex-col items-center justify-center gap-2 text-center hover:-translate-y-0.5 transition-transform" style={{ borderRadius: 18 }}>
+            <span className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: '#e2efef' }}>
+                <Icon className="w-5 h-5" style={{ color: WK.indigo }} />
+            </span>
+            <span className="text-sm font-semibold" style={{ color: WK.ink }}>{label}</span>
+        </Link>
+    )
+}
+
+function ResourceRow({ href, icon: Icon, title, desc }: {
+    href: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; title: string; desc: string
+}) {
+    return (
+        <Link href={href} className="wk-panel px-4 py-3.5 flex items-center gap-3 hover:-translate-y-0.5 transition-transform" style={{ borderRadius: 16 }}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#eef1f0' }}>
+                <Icon className="w-4 h-4" style={{ color: WK.ink }} />
+            </span>
+            <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold" style={{ color: WK.ink }}>{title}</p>
+                <p className="text-xs truncate" style={{ color: WK.muted }}>{desc}</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 flex-shrink-0" style={{ color: WK.muted }} />
+        </Link>
+    )
+}
+
+/* ── small bits ── */
+function Legend({ color, label }: { color: string; label: string }) {
+    return (
+        <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: WK.muted }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} /> {label}
+        </span>
+    )
+}
+
+function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
+    return <span className="text-xs font-semibold rounded-full px-2.5 py-1 capitalize" style={{ background: bg, color: fg }}>{text}</span>
+}
+
+function RiskPill({ risk }: { risk: string | null }) {
+    const map: Record<string, { bg: string; fg: string }> = {
+        high: { bg: '#eef1f0', fg: WK.coral }, medium: { bg: '#eef1f0', fg: '#6b7a78' }, low: { bg: '#e2efef', fg: WK.indigo },
+    }
+    const c = map[risk ?? ''] ?? { bg: '#eef1f0', fg: WK.muted }
+    return <span className="text-xs font-bold rounded-full px-2.5 py-1 uppercase" style={{ background: c.bg, color: c.fg }}>{risk ?? '—'}</span>
 }

@@ -77,12 +77,12 @@ export default function ReportsPage() {
 
     const s = metrics.summary
     const METRICS = [
-        { label: 'Accuracy', value: (s.accuracy ?? 0) * 100, color: '#3b82f6', description: 'Overall detection correctness' },
-        { label: 'Precision', value: (s.precision ?? 0) * 100, color: '#10b981', description: 'Flagged items that are actual Shadow IT' },
-        { label: 'Recall', value: (s.recall ?? 0) * 100, color: '#8b5cf6', description: 'Actual Shadow IT that was detected' },
-        { label: 'F1-Score', value: (s.f1_score ?? 0) * 100, color: '#f59e0b', description: 'Harmonic mean of Precision & Recall' },
-        { label: 'False Positive Rate', value: (s.false_positive_rate ?? 0) * 100, color: '#ef4444', description: 'Normal traffic incorrectly flagged', inverse: true },
-        { label: 'ROC-AUC', value: (s.roc_auc ?? 0) * 100, color: '#06b6d4', description: 'Anomaly-ranking quality of the unsupervised stage' },
+        { label: 'Accuracy', value: (s.accuracy ?? 0) * 100, color: '#2a7477', description: 'Overall detection correctness' },
+        { label: 'Precision', value: (s.precision ?? 0) * 100, color: '#2a7477', description: 'Flagged items that are actual Shadow IT' },
+        { label: 'Recall', value: (s.recall ?? 0) * 100, color: '#6b7a78', description: 'Actual Shadow IT that was detected' },
+        { label: 'F1-Score', value: (s.f1_score ?? 0) * 100, color: '#9aa7a5', description: 'Harmonic mean of Precision & Recall' },
+        { label: 'False Positive Rate', value: (s.false_positive_rate ?? 0) * 100, color: '#1c2624', description: 'Normal traffic incorrectly flagged', inverse: true },
+        { label: 'ROC-AUC', value: (s.roc_auc ?? 0) * 100, color: '#4a9ea1', description: 'Anomaly-ranking quality of the unsupervised stage' },
     ]
     const STAGES = [
         { name: 'IsolationForest', role: 'Unsupervised — novel anomalies', accuracy: s.if_accuracy, precision: s.if_precision, recall: s.if_recall },
@@ -161,7 +161,7 @@ export default function ReportsPage() {
                                 <RadarChart data={RADAR_DATA}>
                                     <PolarGrid stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} />
                                     <PolarAngleAxis dataKey="metric" tick={{ fill: tickColor, fontSize: 11 }} />
-                                    <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} dot={{ r: 3, fill: '#3b82f6' }} />
+                                    <Radar dataKey="value" stroke="#2a7477" fill="#2a7477" fillOpacity={0.25} dot={{ r: 3, fill: '#2a7477' }} />
                                     <Tooltip contentStyle={tt.contentStyle} labelStyle={tt.labelStyle} itemStyle={tt.itemStyle} formatter={(v: number) => [`${v.toFixed(1)}%`, 'Score']} />
                                 </RadarChart>
                             </ResponsiveContainer>
@@ -171,10 +171,10 @@ export default function ReportsPage() {
                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Confusion Matrix</h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    { label: 'True Positive', value: s.tp, color: '#10b981' },
-                                    { label: 'True Negative', value: s.tn, color: '#3b82f6' },
-                                    { label: 'False Positive', value: s.fp, color: '#ef4444' },
-                                    { label: 'False Negative', value: s.fn, color: '#f59e0b' },
+                                    { label: 'True Positive', value: s.tp, color: '#2a7477' },
+                                    { label: 'True Negative', value: s.tn, color: '#2a7477' },
+                                    { label: 'False Positive', value: s.fp, color: '#1c2624' },
+                                    { label: 'False Negative', value: s.fn, color: '#9aa7a5' },
                                 ].map((c) => (
                                     <div key={c.label} className="p-4 rounded-xl text-center" style={{ background: `${c.color}15`, border: `1px solid ${c.color}30` }}>
                                         <p className="text-2xl font-bold" style={{ color: c.color }}>{c.value ?? '—'}</p>

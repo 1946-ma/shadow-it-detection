@@ -22,18 +22,11 @@ export default function RootLayout({
             <head>
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+                <link href="https://fonts.googleapis.com/css2?family=Jersey+10+Charted&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+                {/* WINCK light theme is the only theme — proactively strip any stale `.dark`. */}
                 <script
                     dangerouslySetInnerHTML={{
-                        __html: `
-                            (function() {
-                                try {
-                                    var isLogin = window.location.pathname === '/login';
-                                    var saved = localStorage.getItem('darkMode');
-                                    var dark = saved !== null ? JSON.parse(saved) : true;
-                                    if (dark) document.documentElement.classList.add('dark');
-                                } catch (e) {}
-                            })();
-                        `,
+                        __html: `document.documentElement.classList.remove('dark');`,
                     }}
                 />
             </head>

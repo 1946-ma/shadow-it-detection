@@ -10,9 +10,9 @@ import { Package, AlertTriangle, Loader2 } from 'lucide-react'
 import { fetchAllDetections, groupByApplication, type ApplicationAggregate } from '@/lib/aggregate'
 
 const TYPE_COLORS: Record<string, string> = {
-    software: '#3b82f6',
+    software: '#2a7477',
     hardware: '#a855f7',
-    mixed: '#f59e0b',
+    mixed: '#9aa7a5',
 }
 
 const getRiskColor = (risk: string) => {

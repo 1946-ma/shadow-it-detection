@@ -246,7 +246,8 @@ function AlertsPageInner() {
                             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setSelected(null)} />
                         <motion.div key="panel" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                            className="fixed top-0 right-0 h-full w-full max-w-md z-50 bg-slate-900/95 border-l border-white/10 backdrop-blur-xl overflow-y-auto">
+                            className="fixed top-0 right-0 h-full w-full max-w-md z-50 border-l overflow-y-auto"
+                            style={{ background: '#ffffff', borderColor: '#e6e9e8' }}>
                             <div className="p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className="text-lg font-semibold text-white">Alert #{selected.id}</h2>

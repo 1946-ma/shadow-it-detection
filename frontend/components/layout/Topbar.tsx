@@ -6,7 +6,7 @@ import Cookies from 'js-cookie'
 import { clearAuth } from '@/lib/auth'
 import { authApi, statsApi } from '@/lib/api'
 import {
-    Search, Bell, Moon, Sun, UserCircle, Settings, LogOut,
+    Search, Bell, UserCircle, Settings, LogOut,
     LayoutDashboard, AlertCircle, Monitor, Package, FileText, BarChart3, Wifi,
     X, Shield, Menu,
 } from 'lucide-react'
@@ -39,7 +39,6 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
     const [mounted,          setMounted]          = useState(false)
     const [role,             setRole]             = useState<string | undefined>(undefined)
     const [username,         setUsername]         = useState('User')
-    const [isDarkMode,       setIsDarkMode]       = useState(true)
     const [searchQuery,      setSearchQuery]      = useState('')
     const [searchOpen,       setSearchOpen]       = useState(false)
     const [activeIndex,      setActiveIndex]      = useState(0)
@@ -54,9 +53,6 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         setRole(Cookies.get('role'))
         setUsername(Cookies.get('username') || 'User')
         setMounted(true)
-        const saved = localStorage.getItem('darkMode')
-        if (saved !== null) setIsDarkMode(JSON.parse(saved))
-        else setIsDarkMode(document.documentElement.classList.contains('dark'))
     }, [])
 
     useEffect(() => {
@@ -98,13 +94,6 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         router.push('/login')
     }
 
-    const toggleDark = () => {
-        const n = !isDarkMode
-        setIsDarkMode(n)
-        localStorage.setItem('darkMode', JSON.stringify(n))
-        document.documentElement.classList.toggle('dark', n)
-    }
-
     const openNotif = () => {
         clearNotifTimer()
         setShowNotif(true)
@@ -142,7 +131,8 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <motion.header
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass border-b border-slate-200 dark:border-white/8 px-4 sm:px-6 py-3 sticky top-0 z-30"
+            className="px-4 sm:px-6 py-3 sticky top-0 z-30"
+            style={{ background: '#ffffff', borderBottom: '1px solid #e6e9e8' }}
         >
             <div className="flex items-center justify-between gap-3">
 
@@ -288,19 +278,6 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                         </AnimatePresence>
                     </div>
 
-                    {/* Dark Mode Toggle */}
-                    <motion.button
-                        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
-                        onClick={toggleDark}
-                        className="p-2 rounded-lg transition-all hover:bg-slate-100 dark:hover:bg-white/8"
-                        title={isDarkMode ? 'Light mode' : 'Dark mode'}
-                    >
-                        {isDarkMode
-                            ? <Moon className="w-5 h-5 text-blue-400" />
-                            : <Sun className="w-5 h-5 text-yellow-500" />
-                        }
-                    </motion.button>
-
                     {/* ── User Menu ── */}
                     {mounted && (
                         <div className="relative">
@@ -309,7 +286,8 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                                 onClick={() => { setShowLogout(!showLogout); setShowNotif(false); clearNotifTimer() }}
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
                             >
-                                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #2a7477, #4a9ea1)' }}>
                                     {username.split(' ')[0]?.charAt(0).toUpperCase()}{username.split(' ')[1]?.charAt(0).toUpperCase() || ''}
                                 </div>
                                 <div className="text-left hidden sm:block">
