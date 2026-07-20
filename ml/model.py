@@ -53,9 +53,15 @@ def is_sanctioned(host: str, allowlist: set[str]) -> bool:
 # constants (e.g. via `SELECT percentile_cont(0.33/0.66) WITHIN GROUP
 # (ORDER BY anomaly_score) FROM detections`) if the model is retrained
 # and the score range shifts.
-RISK_THRESHOLD_HIGH   = -0.564  # score < -0.564                    → high   (bottom third)
-RISK_THRESHOLD_MEDIUM = -0.459  # -0.564 <= score < -0.459         → medium (middle third)
-                                 # score >= -0.459                  → low    (top third)
+# Recalibrated 2026-07-20 to LIVE network traffic — the CICIDS2017 tertiles
+# (-0.564/-0.459) left every live flow at high/medium because live IsolationForest
+# scores run more anomalous (domain shift). Measured from 185 live-captured flagged
+# flows: range [-0.7509, -0.5248], p33=-0.685, p66=-0.563. These are per-network:
+# recompute the tertiles (SELECT percentile_cont(0.33/0.66) ...) after retraining or
+# when deploying on a different network.
+RISK_THRESHOLD_HIGH   = -0.685  # score < -0.685                    → high   (bottom third)
+RISK_THRESHOLD_MEDIUM = -0.563  # -0.685 <= score < -0.563         → medium (middle third)
+                                 # score >= -0.563                  → low    (top third)
 
 
 def classify_risk(score: float, shadow_type: str) -> str:
