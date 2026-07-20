@@ -26,8 +26,15 @@ def _extract_token():
 def _is_revoked(jti: str) -> bool:
     if not jti:
         return False
-    row = execute("SELECT 1 AS x FROM token_denylist WHERE jti = %s", (jti,), fetch="one")
-    return row is not None
+    try:
+        row = execute("SELECT 1 AS x FROM token_denylist WHERE jti = %s", (jti,), fetch="one")
+        return row is not None
+    except Exception:
+        # token_denylist may be absent on databases that predate the security
+        # hardening (the restricted role can't auto-create it). Fail open on the
+        # revocation check so authentication still works; logout-revocation is a
+        # no-op until the table exists, but the rest of the API stays available.
+        return False
 
 
 def token_required(f):

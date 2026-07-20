@@ -297,13 +297,13 @@ RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
 ```
 
 ### Risk Classification (empirically calibrated thirds)
-Thresholds are tertiles of the IF anomaly_score distribution on hybrid-flagged records — NOT the theoretical `score_samples()` range. **Recalibrated 2026-07-05** for the hybrid model (measured from 13,141 flagged holdout records: range [-0.7645, -0.3619], p33=-0.5638, p66=-0.4594):
+Thresholds are tertiles of the IF anomaly_score distribution on flagged records — NOT the theoretical `score_samples()` range. They are **per-network**: live IsolationForest scores run more anomalous than the 2017 CICIDS baseline (domain shift), so the CICIDS tertiles pinned every live flow to high/medium (never low). **Recalibrated 2026-07-20 to live traffic** (measured from 185 live-captured flagged flows: range [-0.7509, -0.5248], p33=-0.685, p66=-0.563):
 ```python
-if score < -0.564:  return "high"    # bottom third — most anomalous
-if score < -0.459:  return "medium"  # middle third
+if score < -0.685:  return "high"    # bottom third — most anomalous
+if score < -0.563:  return "medium"  # middle third
 else:               return "low"     # top third — mildly anomalous
 ```
-Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_THRESHOLD_MEDIUM`) if the model is ever retrained — the score range is specific to this trained `.pkl`. Query: `SELECT percentile_cont(0.33/0.66) WITHIN GROUP (ORDER BY anomaly_score) FROM detections`.
+Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_THRESHOLD_MEDIUM`) after retraining or when deploying on a different network. Query: `SELECT percentile_cont(0.33/0.66) WITHIN GROUP (ORDER BY anomaly_score) FROM detections`. (Prior CICIDS-holdout calibration was -0.564 / -0.459 from 13,141 flagged holdout records.)
 
 ### Feature Engineering
 20 CICIDS2017 features used. Key ones: Flow Duration, Total Fwd/Bwd Packets, Packet Length Mean/Std/Max, Flow Bytes/s, Flow Packets/s, SYN/FIN/RST/PSH/ACK flag counts, Init Win Fwd/Bwd, Subflow Fwd/Bwd Bytes, Active/Idle Mean.
