@@ -76,6 +76,10 @@ export const scanApi = {
     status: () => api.get('/api/scan/status'),
     detections: () => api.get('/api/scan/detections'),
     flush: () => api.post('/api/scan/flush'),
+    // Active ARP + port scan of the local subnet — can take a while, so a
+    // longer client timeout than the default.
+    discover: (iface_ip: string, authorized: boolean) =>
+        api.post('/api/scan/discover', { iface_ip, authorized }, { timeout: 180000 }),
 }
 
 export default api

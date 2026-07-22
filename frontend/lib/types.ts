@@ -125,3 +125,22 @@ export interface NetworkInterface {
     description: string
     ip: string | null
 }
+
+export interface DiscoveredService {
+    port: number
+    service: string
+}
+
+export interface DiscoveredDevice {
+    ip: string
+    mac: string
+    services: DiscoveredService[]
+}
+
+export interface DiscoverResponse {
+    devices: DiscoveredDevice[]
+    device_count: number
+    service_count: number
+    saved: number
+    subnet: string
+}

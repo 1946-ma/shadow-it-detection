@@ -11,7 +11,10 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import time
+import socket
+import ipaddress
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 try:
@@ -270,9 +273,17 @@ class NetworkCollector:
       collector.pop_detections() → returns and clears pending anomalies
     """
 
-    def __init__(self, flow_timeout: int = 15, flush_interval: int = 5):
+    def __init__(self, flow_timeout: int = 15, flush_interval: int = 5,
+                 promisc: bool = True):
         self.flow_timeout   = flow_timeout
         self.flush_interval = flush_interval
+        # Promiscuous mode: accept frames not addressed to this host's MAC.
+        # This only yields OTHER devices' traffic where the wire actually
+        # delivers it — a hub, a switch SPAN/mirror port, or Wi-Fi monitor
+        # mode. On an ordinary switched LAN the switch still forwards only
+        # this host's unicast, so promisc changes nothing there (use the
+        # active service scan below to enumerate other devices instead).
+        self.promisc        = promisc
 
         self._flows:   dict  = {}
         self._lock           = threading.Lock()
@@ -380,6 +391,7 @@ class NetworkCollector:
                 iface=iface,
                 prn=self._process_packet,
                 store=False,
+                promisc=self.promisc,
                 stop_filter=lambda _: not self._running,
             )
         except Exception as exc:
@@ -454,6 +466,154 @@ class NetworkCollector:
             d = list(self._detections)
             self._detections = []
             return d
+
+
+# ── Active service discovery (ARP sweep + TCP service scan) ────────────────────
+# Passive capture only ever sees THIS host's traffic on a switched LAN. To learn
+# what OTHER devices exist and what services they run, we probe them actively:
+#   1. ARP sweep the local /24  → live devices ({ip, mac})
+#   2. TCP-connect a small curated set of service ports on each  → open services
+#
+# This SENDS packets to every device on the subnet. It is legitimate for a
+# network you own or are authorised to assess (the Shadow IT use case), but on a
+# shared/institutional network it can breach acceptable-use policy. So it is
+# gated behind an explicit `authorized=True` and scoped to the local subnet.
+
+# Common service ports → label. Deliberately small (fast, gentle); extend as
+# needed. These are the services a Shadow IT audit most cares about on an endpoint.
+SERVICE_PORTS = {
+    21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS",
+    80: "HTTP", 110: "POP3", 139: "NetBIOS", 143: "IMAP", 443: "HTTPS",
+    445: "SMB", 587: "SMTP", 993: "IMAPS", 1433: "MSSQL", 1883: "MQTT",
+    3306: "MySQL", 3389: "RDP", 5000: "HTTP/UPnP", 5432: "PostgreSQL",
+    5900: "VNC", 6379: "Redis", 8000: "HTTP-alt", 8080: "HTTP-proxy",
+    8443: "HTTPS-alt", 9200: "Elasticsearch", 27017: "MongoDB",
+}
+
+# Ports that, exposed on a random endpoint, are the most likely Shadow IT /
+# risk signal (remote access, unauthenticated data stores). Drives risk_level
+# when scan results are turned into detection records.
+_RISKY_PORTS = {
+    23: "high", 3389: "high", 5900: "high", 445: "high", 6379: "high",
+    9200: "high", 27017: "high", 1433: "high", 3306: "medium",
+    5432: "medium", 21: "medium", 1883: "medium",
+}
+
+
+def discover_devices(subnet: str, timeout: int = 2) -> list[dict]:
+    """ARP-sweep a subnet (e.g. '192.168.16.0/24'); return live [{ip, mac}].
+    Layer-2 only — cannot cross a router, which is exactly the local segment
+    a Shadow IT audit is scoped to."""
+    if not SCAPY_AVAILABLE:
+        raise RuntimeError("Scapy not available — cannot ARP sweep")
+    from scapy.layers.l2 import ARP
+    from scapy.sendrecv import srp
+
+    pkt = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=str(subnet))
+    answered, _ = srp(pkt, timeout=timeout, verbose=False)
+    seen: dict[str, str] = {}
+    for _, reply in answered:
+        seen[reply.psrc] = reply.hwsrc          # de-dupe by IP
+    return [{"ip": ip, "mac": mac} for ip, mac in seen.items()]
+
+
+def scan_ports(ip: str, ports: dict = None, connect_timeout: float = 0.5,
+               max_workers: int = 32) -> list[dict]:
+    """TCP-connect scan of one host over a curated port set. Returns the open
+    ones as [{port, service}]. Connect scan only (no raw SYN) — no special
+    privileges, and it completes the handshake so it is not stealthy by design."""
+    ports = ports or SERVICE_PORTS
+
+    def probe(item):
+        port, name = item
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(connect_timeout)
+                if s.connect_ex((ip, port)) == 0:
+                    return {"port": port, "service": name}
+        except OSError:
+            pass
+        return None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        found = [r for r in ex.map(probe, ports.items()) if r]
+    return sorted(found, key=lambda r: r["port"])
+
+
+def active_scan(iface_ip: str, prefix: int = 24, ports: dict = None, *,
+                authorized: bool = False, arp_timeout: int = 2,
+                connect_timeout: float = 0.5, max_workers: int = 64) -> list[dict]:
+    """Full sweep of the local subnet: discover devices, then enumerate the
+    services each runs. Returns [{ip, mac, services:[{port, service}]}].
+
+    `iface_ip` is any IPv4 on the target segment (e.g. this host's Wi-Fi IP —
+    see list_interfaces()); the /prefix subnet is derived from it.
+
+    Requires `authorized=True`: this sends ARP + TCP probes to every device on
+    the subnet. Only run it on a network you own or are permitted to assess.
+    """
+    if not authorized:
+        raise PermissionError(
+            "active_scan performs an ACTIVE ARP sweep + TCP port scan of the "
+            "whole subnet. Pass authorized=True only for a network you own or "
+            "are permitted to scan — probing a shared/institutional network "
+            "without consent may violate acceptable-use policy or law."
+        )
+    if not SCAPY_AVAILABLE:
+        raise RuntimeError("Scapy not available — cannot run active scan")
+
+    subnet  = ipaddress.ip_network(f"{iface_ip}/{prefix}", strict=False)
+    devices = discover_devices(str(subnet), timeout=arp_timeout)
+    by_ip   = {d["ip"]: {"ip": d["ip"], "mac": d["mac"], "services": []}
+               for d in devices}
+    ports   = ports or SERVICE_PORTS
+
+    # Fan out over (host, port) pairs so a slow host can't stall the sweep.
+    tasks = [(ip, port, name) for ip in by_ip for port, name in ports.items()]
+
+    def probe(task):
+        ip, port, name = task
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(connect_timeout)
+                if s.connect_ex((ip, port)) == 0:
+                    return ip, {"port": port, "service": name}
+        except OSError:
+            pass
+        return ip, None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        for ip, svc in ex.map(probe, tasks):
+            if svc:
+                by_ip[ip]["services"].append(svc)
+
+    for dev in by_ip.values():
+        dev["services"].sort(key=lambda r: r["port"])
+    return list(by_ip.values())
+
+
+def scan_to_detections(scan_results: list[dict]) -> list[dict]:
+    """Map active-scan results into the detection-record shape the DB and
+    dashboard already use (see backend/routes/scan.py). One record per open
+    service; risk_level comes from _RISKY_PORTS. anomaly_score is 0.0 — these
+    are actively-observed services, not IsolationForest anomalies."""
+    records = []
+    for dev in scan_results:
+        for svc in dev["services"]:
+            records.append({
+                "src_ip":         dev["ip"],
+                "src_mac":        dev.get("mac", "Unknown"),
+                "dst_domain":     f'{svc["service"]}:{svc["port"]}',
+                "protocol":       "TCP",
+                "bytes_sent":     0,
+                "bytes_received": 0,
+                "duration":       0,
+                "device_type":    "network-host",
+                "shadow_it_type": "software",
+                "risk_level":     _RISKY_PORTS.get(svc["port"], "low"),
+                "anomaly_score":  0.0,
+            })
+    return records
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
