@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, g
 
-from backend.models.db_models import execute
+from backend.models.db_models import execute, execute_many
 from backend.middleware.jwt_auth import token_required
 from backend.middleware.rbac import admin_required
 
@@ -105,29 +105,27 @@ def detections():
         return jsonify({"detections": [], "count": 0})
 
     raw = col.pop_detections()
-    saved = []
 
-    for r in raw:
-        execute(
-            """INSERT INTO detections
-               (src_ip, src_mac, dst_domain, protocol,
-                bytes_sent, bytes_received, duration, device_type,
-                shadow_it_type, risk_level, anomaly_score)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (
-                r["src_ip"],
-                r.get("src_mac", "Live"),
-                r.get("dst_domain", r.get("Destination IP", "Unknown")),
-                r.get("protocol", "TCP"),
-                r.get("bytes_sent", 0),
-                r.get("bytes_received", 0),
-                r.get("duration", 0),
-                r.get("device_type", "unknown"),
-                r["shadow_it_type"],
-                r["risk_level"],
-                r["anomaly_score"],
-            ),
-        )
-        saved.append(r)
+    # One connection, one transaction — atomic (all rows or none).
+    execute_many(
+        """INSERT INTO detections
+           (src_ip, src_mac, dst_domain, protocol,
+            bytes_sent, bytes_received, duration, device_type,
+            shadow_it_type, risk_level, anomaly_score)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        [(
+            r["src_ip"],
+            r.get("src_mac", "Live"),
+            r.get("dst_domain", r.get("Destination IP", "Unknown")),
+            r.get("protocol", "TCP"),
+            r.get("bytes_sent", 0),
+            r.get("bytes_received", 0),
+            r.get("duration", 0),
+            r.get("device_type", "unknown"),
+            r["shadow_it_type"],
+            r["risk_level"],
+            r["anomaly_score"],
+        ) for r in raw],
+    )
 
-    return jsonify({"detections": saved, "count": len(saved)})
+    return jsonify({"detections": raw, "count": len(raw)})

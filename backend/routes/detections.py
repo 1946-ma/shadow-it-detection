@@ -54,6 +54,16 @@ def _audit(user_id, action, target, ip):
     )
 
 
+def _csv_safe(value):
+    """Prefix cells Excel would treat as formulas (= + - @, tab, CR) with a
+    quote. dst_domain comes from attacker-controlled network input (TLS SNI /
+    HTTP Host), so a hostname like `=HYPERLINK(...)` must not execute when an
+    admin opens the export in a spreadsheet."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def _serialize(row: dict) -> dict:
     r = dict(row)
     if r.get("detected_at"):
@@ -141,7 +151,7 @@ def export_detections():
         d = dict(r)
         if d.get("detected_at"):
             d["detected_at"] = d["detected_at"].isoformat()
-        writer.writerow(d)
+        writer.writerow({k: _csv_safe(v) for k, v in d.items()})
 
     return Response(
         buf.getvalue(),

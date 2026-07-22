@@ -1,14 +1,9 @@
-import os
 from functools import wraps
 import jwt
 from flask import request, jsonify, g
-from dotenv import load_dotenv
 
 from backend.models.db_models import execute
-
-load_dotenv()
-
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
+from backend.extensions import JWT_SECRET
 
 
 def _extract_token():
