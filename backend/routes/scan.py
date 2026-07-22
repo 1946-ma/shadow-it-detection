@@ -1,3 +1,6 @@
+import ipaddress
+import logging
+
 from flask import Blueprint, jsonify, request, g
 
 from backend.models.db_models import execute, execute_many
@@ -5,6 +8,22 @@ from backend.middleware.jwt_auth import token_required
 from backend.middleware.rbac import admin_required
 
 scan_bp = Blueprint("scan", __name__)
+log = logging.getLogger("shadow-it")
+
+_DETECTION_INSERT = """INSERT INTO detections
+    (src_ip, src_mac, dst_domain, protocol,
+     bytes_sent, bytes_received, duration, device_type,
+     shadow_it_type, risk_level, anomaly_score)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+
+
+def _detection_rows(records):
+    return [(r["src_ip"], r.get("src_mac", "Live"),
+             r.get("dst_domain", r.get("Destination IP", "Unknown")),
+             r.get("protocol", "TCP"), r.get("bytes_sent", 0),
+             r.get("bytes_received", 0), r.get("duration", 0),
+             r.get("device_type", "unknown"), r["shadow_it_type"],
+             r["risk_level"], r["anomaly_score"]) for r in records]
 
 
 def _col():
@@ -107,25 +126,62 @@ def detections():
     raw = col.pop_detections()
 
     # One connection, one transaction — atomic (all rows or none).
-    execute_many(
-        """INSERT INTO detections
-           (src_ip, src_mac, dst_domain, protocol,
-            bytes_sent, bytes_received, duration, device_type,
-            shadow_it_type, risk_level, anomaly_score)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-        [(
-            r["src_ip"],
-            r.get("src_mac", "Live"),
-            r.get("dst_domain", r.get("Destination IP", "Unknown")),
-            r.get("protocol", "TCP"),
-            r.get("bytes_sent", 0),
-            r.get("bytes_received", 0),
-            r.get("duration", 0),
-            r.get("device_type", "unknown"),
-            r["shadow_it_type"],
-            r["risk_level"],
-            r["anomaly_score"],
-        ) for r in raw],
-    )
+    execute_many(_DETECTION_INSERT, _detection_rows(raw))
 
     return jsonify({"detections": raw, "count": len(raw)})
+
+
+# ── POST /api/scan/discover ────────────────────────────────────────────────────
+# ACTIVE scan: ARP-sweep the local subnet and TCP-probe each live device for
+# running services. Unlike passive capture this SENDS packets to every host, so
+# it is admin-only AND requires an explicit `authorized` confirmation from the
+# caller. Host-only, like live capture — a Docker container can't ARP the LAN.
+@scan_bp.route("/discover", methods=["POST"])
+@token_required
+@admin_required
+def discover():
+    from ml.collector import active_scan, scan_to_detections, SCAPY_AVAILABLE
+    if not SCAPY_AVAILABLE:
+        return jsonify({"error": "Scapy not installed — active scan unavailable"}), 503
+
+    body       = request.get_json(silent=True) or {}
+    iface_ip   = str(body.get("iface_ip", "")).strip()
+    authorized = bool(body.get("authorized"))
+
+    if not iface_ip:
+        return jsonify({"error": "iface_ip is required (the local IP of the adapter to scan)"}), 400
+    try:
+        ipaddress.ip_address(iface_ip)          # reject junk before scapy sees it
+    except ValueError:
+        return jsonify({"error": "iface_ip is not a valid IPv4 address"}), 400
+    if not authorized:
+        return jsonify({"error": "You must confirm you are authorized to scan this network."}), 403
+
+    try:
+        results = active_scan(iface_ip, authorized=True)
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    except Exception:
+        log.exception("active scan failed")
+        return jsonify({"error": "Network scan failed. Check server logs."}), 500
+
+    records = scan_to_detections(results)
+    if records:
+        execute_many(_DETECTION_INSERT, _detection_rows(records))
+
+    u      = g.current_user
+    subnet = f"{iface_ip.rsplit('.', 1)[0]}.0/24"
+    execute(
+        "INSERT INTO audit_logs (user_id, action, target, ip_address) VALUES (%s,%s,%s,%s)",
+        (u["user_id"], "NETWORK_DISCOVER",
+         f"Active scan {subnet} — {len(results)} devices, {len(records)} services",
+         request.remote_addr),
+    )
+
+    return jsonify({
+        "devices":       results,
+        "device_count":  len(results),
+        "service_count": len(records),
+        "saved":         len(records),
+        "subnet":        subnet,
+    })

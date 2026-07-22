@@ -2,14 +2,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Play, Square, RefreshCw, Radio, Wifi } from 'lucide-react'
+import { Play, Square, RefreshCw, Radio, Wifi, Search, ShieldAlert, Server } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import { StatusIcon } from '@/components/ui/StatusIcon'
 import { scanApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
-import type { ScanStatus, Detection, NetworkInterface } from '@/lib/types'
+import type { ScanStatus, Detection, NetworkInterface, DiscoveredDevice, DiscoverResponse } from '@/lib/types'
 
 const POLL_MS = 5000
+
+// Ports that signal remote access / unauthenticated data stores — highlighted
+// red in the discovery results. Mirrors _RISKY_PORTS in ml/collector.py.
+const RISKY_PORTS = new Set([23, 3389, 5900, 445, 6379, 9200, 27017, 1433])
 
 const StatBox = ({ label, value, color }: { label: string; value: string | number; color: string }) => (
     <div className="flex-1 min-w-[90px] rounded-xl p-3.5 text-center bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
@@ -50,6 +54,16 @@ export default function LiveScanPage() {
     const [error, setError] = useState('')
     const [ifaceErr, setIfaceErr] = useState('')
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+    // Active network-discovery state (separate from passive capture above)
+    const [authorized, setAuthorized] = useState(false)
+    const [discovering, setDiscovering] = useState(false)
+    const [discoverError, setDiscoverError] = useState('')
+    const [discoverInfo, setDiscoverInfo] = useState('')
+    const [devices, setDevices] = useState<DiscoveredDevice[]>([])
+
+    const selectedIp = interfaces.find((i) => i.device === iface)?.ip || ''
+    const subnet = selectedIp ? `${selectedIp.split('.').slice(0, 3).join('.')}.0/24` : ''
 
     useEffect(() => {
         scanApi.interfaces()
@@ -112,6 +126,24 @@ export default function LiveScanPage() {
         } catch (e) {
             setError(apiErrorMessage(e, 'Flush failed'))
         } finally { setLoading(false) }
+    }
+
+    const handleDiscover = async () => {
+        if (!selectedIp || !authorized) return
+        setDiscovering(true); setDiscoverError(''); setDiscoverInfo('')
+        try {
+            const r = await scanApi.discover(selectedIp, authorized)
+            const data: DiscoverResponse = r.data
+            setDevices(data.devices)
+            const s = (n: number) => (n === 1 ? '' : 's')
+            setDiscoverInfo(
+                `${data.device_count} device${s(data.device_count)} · ` +
+                `${data.service_count} service${s(data.service_count)} · ` +
+                `${data.saved} saved to Detections`
+            )
+        } catch (e) {
+            setDiscoverError(apiErrorMessage(e, 'Network scan failed'))
+        } finally { setDiscovering(false) }
     }
 
     return (
@@ -204,6 +236,83 @@ export default function LiveScanPage() {
                     </div>
                 </GlassCard>
             </div>
+
+            {/* ── Active network discovery (ARP sweep + service port scan) ── */}
+            <GlassCard className="p-6">
+                <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            Network Discovery
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-amber-500/10 border border-amber-500/25 text-amber-500">ACTIVE</span>
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                            ARP-sweeps {subnet || 'the selected adapter’s subnet'} to find every device, then probes each for open services (SSH, RDP, SMB, databases…). Unlike passive capture, this <strong>sends packets to every device</strong> — findings are saved to Detections.
+                        </p>
+                    </div>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={handleDiscover} disabled={!authorized || !selectedIp || discovering}
+                        className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <Search className="w-4 h-4" /> {discovering ? 'Scanning…' : 'Scan Network'}
+                    </motion.button>
+                </div>
+
+                <label className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 cursor-pointer">
+                    <input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)}
+                        className="mt-0.5 accent-amber-500" />
+                    <span className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed flex items-start gap-1.5">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        I am authorized to actively scan this network. Probing devices on a network you don’t own or have permission to test may violate acceptable-use policy or law.
+                    </span>
+                </label>
+
+                {!selectedIp && (
+                    <p className="text-xs text-amber-500 mt-3">Select a capture interface with an IP address (above) to scan its subnet.</p>
+                )}
+                {discoverError && <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-sm text-red-400">{discoverError}</div>}
+                {discoverInfo && <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-sm text-emerald-500">{discoverInfo}</div>}
+
+                {devices.length > 0 && (
+                    <div className="overflow-x-auto mt-4">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-slate-200 dark:border-white/10">
+                                <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
+                                    <th className="text-left py-2 px-3">Device IP</th>
+                                    <th className="text-left py-2 px-3">MAC</th>
+                                    <th className="text-left py-2 px-3">Open Services</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {devices.map((d) => (
+                                    <tr key={d.ip} className="border-b border-slate-100 dark:border-white/5 align-top">
+                                        <td className="py-2.5 px-3 text-xs font-mono text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                            <Server className="w-3.5 h-3.5 text-slate-400" /> {d.ip}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-xs font-mono text-slate-500">{d.mac}</td>
+                                        <td className="py-2.5 px-3">
+                                            {d.services.length === 0 ? (
+                                                <span className="text-xs text-slate-400">no common ports open</span>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {d.services.map((s) => {
+                                                        const risky = RISKY_PORTS.has(s.port)
+                                                        return (
+                                                            <span key={s.port}
+                                                                className={`px-2 py-0.5 rounded text-[11px] font-medium border ${risky ? 'bg-red-500/10 border-red-500/25 text-red-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
+                                                                {s.service}:{s.port}
+                                                            </span>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </GlassCard>
 
             {!status.running && detections.length === 0 && (
                 <GlassCard className="p-6">
