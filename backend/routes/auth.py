@@ -8,13 +8,12 @@ from dotenv import load_dotenv
 
 from backend.models.db_models import execute
 from backend.middleware.jwt_auth import token_required
-from backend.extensions import limiter
+from backend.extensions import limiter, JWT_SECRET
 
 load_dotenv()
 
 auth_bp = Blueprint("auth", __name__)
 
-JWT_SECRET      = os.getenv("JWT_SECRET", "change-me")
 JWT_EXPIRY_HRS  = int(os.getenv("JWT_EXPIRY_HOURS", 8))
 
 # Cookie flags. COOKIE_SECURE=true once served over HTTPS (see deploy/ TLS

@@ -55,7 +55,7 @@ def create_app() -> Flask:
     # ── POST /api/run-detection  (admin only) ──────────────────────────────────
     from backend.middleware.jwt_auth import token_required
     from backend.middleware.rbac     import admin_required
-    from backend.models.db_models    import execute
+    from backend.models.db_models    import execute, execute_many
 
     @app.route("/api/run-detection", methods=["POST"])
     @token_required
@@ -69,19 +69,18 @@ def create_app() -> Flask:
             df               = load_fast(nrows_per_file=300)
             results, elapsed = detect(df)
 
-            inserted = 0
-            for r in results:
-                execute(
-                    """INSERT INTO detections
-                       (src_ip, src_mac, dst_domain, protocol,
-                        bytes_sent, bytes_received, duration, device_type,
-                        shadow_it_type, risk_level, anomaly_score)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (r["src_ip"], r["src_mac"], r["dst_domain"], r["protocol"],
-                     r["bytes_sent"], r["bytes_received"], r["duration"], r["device_type"],
-                     r["shadow_it_type"], r["risk_level"], r["anomaly_score"]),
-                )
-                inserted += 1
+            # One connection, one transaction — atomic (all rows or none).
+            inserted = execute_many(
+                """INSERT INTO detections
+                   (src_ip, src_mac, dst_domain, protocol,
+                    bytes_sent, bytes_received, duration, device_type,
+                    shadow_it_type, risk_level, anomaly_score)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                [(r["src_ip"], r["src_mac"], r["dst_domain"], r["protocol"],
+                  r["bytes_sent"], r["bytes_received"], r["duration"], r["device_type"],
+                  r["shadow_it_type"], r["risk_level"], r["anomaly_score"])
+                 for r in results],
+            )
 
             u = g.current_user
             execute(
@@ -125,4 +124,7 @@ if __name__ == "__main__":
     # debugger allows remote code execution if reachable, so it must never
     # default on. Production runs under gunicorn and never hits this path.
     debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true")
-    create_app().run(host="0.0.0.0", port=port, debug=debug)
+    # threaded=True so the live-capture background threads (Scapy sniff/flush) can't
+    # starve HTTP request handling — the single-threaded dev server would otherwise
+    # hang the API under heavy Wi-Fi traffic. (Production runs under gunicorn.)
+    create_app().run(host="0.0.0.0", port=port, debug=debug, threaded=True)

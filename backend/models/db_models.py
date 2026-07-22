@@ -1,19 +1,37 @@
 import os
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_connection():
-    return psycopg.connect(
+def _conninfo() -> str:
+    return psycopg.conninfo.make_conninfo(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", 5432)),
         dbname=os.getenv("DB_NAME", "shadow_it_db"),
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD", ""),
     )
+
+
+# Lazily-created singleton pool — created on first query, not at import, so
+# scripts that never touch the DB (or run before it is up) still import fine.
+_pool = None
+
+
+def _get_pool() -> ConnectionPool:
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(conninfo=_conninfo(), min_size=1, max_size=10, open=True)
+    return _pool
+
+
+def get_connection():
+    """Direct (non-pooled) connection — kept for standalone scripts."""
+    return psycopg.connect(_conninfo())
 
 
 def ensure_auth_schema():
@@ -40,20 +58,25 @@ def execute(query: str, params=None, fetch: str = None):
     fetch = 'one' → fetchone()
     fetch = 'all' → fetchall()
     """
-    conn = get_connection()
-    try:
+    # The pool's connection() context manager commits on success, rolls back
+    # on exception, and returns the connection to the pool either way.
+    with _get_pool().connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(query, params)
             if fetch == "one":
-                result = cur.fetchone()
-            elif fetch == "all":
-                result = cur.fetchall()
-            else:
-                result = None
-        conn.commit()
-        return result
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+                return cur.fetchone()
+            if fetch == "all":
+                return cur.fetchall()
+            return None
+
+
+def execute_many(query: str, param_seq) -> int:
+    """Insert/update many rows in ONE connection and ONE transaction — atomic
+    (all rows or none) and far cheaper than per-row execute() calls."""
+    param_seq = list(param_seq)
+    if not param_seq:
+        return 0
+    with _get_pool().connection() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(query, param_seq)
+    return len(param_seq)
