@@ -18,9 +18,71 @@ try:
     from scapy.all import sniff, get_if_list, conf
     from scapy.layers.inet import IP, TCP, UDP, ICMP
     from scapy.layers.l2 import Ether
+    from scapy.layers.dns import DNS, DNSRR
     SCAPY_AVAILABLE = True
 except Exception:
     SCAPY_AVAILABLE = False
+
+
+# ── Passive DNS cache (IP → hostname) ─────────────────────────────────────────
+# The sniffer sees the DNS *responses* the device receives just before it
+# connects somewhere (e.g. `g.whatsapp.net` → 157.240.x.x). Caching those
+# answers names destinations whose TLS handshake carries no parseable SNI —
+# QUIC/HTTP-3, WhatsApp's Noise protocol, raw-IP flows. DoH/DoT lookups are
+# encrypted and invisible to this; those flows keep the SNI-or-IP fallback.
+_DNS_CACHE_MAX = 4096
+_dns_cache: dict[str, str] = {}
+_dns_lock = threading.Lock()
+
+
+def _cache_dns_response(dns):
+    """Record answer-IP → queried-name from a DNS response packet."""
+    try:
+        if not dns.qr or not dns.ancount or dns.qd is None:
+            return
+        # Scapy ≥2.6 exposes qd/an as lists; older versions chain packets
+        # via .payload. Normalise both to plain lists.
+        qd = dns.qd
+        if isinstance(qd, list):
+            if not qd:
+                return
+            qd = qd[0]
+        qname = qd.qname
+        if isinstance(qname, bytes):
+            qname = qname.decode("ascii", "ignore")
+        qname = qname.rstrip(".").lower()
+        if not qname:
+            return
+
+        an = dns.an
+        if isinstance(an, list):
+            answers = an
+        else:
+            answers, rr = [], an
+            while isinstance(rr, DNSRR):
+                answers.append(rr)
+                rr = rr.payload
+
+        with _dns_lock:
+            for rr in answers:
+                if rr.type in (1, 28):        # A / AAAA
+                    ip = rr.rdata
+                    if isinstance(ip, bytes):
+                        ip = ip.decode("ascii", "ignore")
+                    if ip:
+                        # Map to the ORIGINAL query name (what the app asked
+                        # for), not a CNAME-chain intermediate.
+                        if len(_dns_cache) >= _DNS_CACHE_MAX:
+                            _dns_cache.pop(next(iter(_dns_cache)))
+                        _dns_cache[str(ip)] = qname
+    except Exception:
+        pass  # malformed DNS must never break capture
+
+
+def dns_hostname(ip: str):
+    """Hostname previously resolved to this IP, or None."""
+    with _dns_lock:
+        return _dns_cache.get(ip)
 
 
 # ── Service-name extraction (SNI / HTTP Host) ──────────────────────────────────
@@ -186,7 +248,13 @@ class FlowRecord:
             "Protocol":                       self.protocol,
             "src_mac":                        self.src_mac or "Live",
             "device_type":                    "unknown",
-            "sni":                            self.sni,
+            # SNI parsed from the handshake wins; otherwise fall back to the
+            # name this destination IP was resolved from (passive DNS) — and
+            # check both endpoints, since the flow's "destination" is just
+            # whichever side did not send the first packet we saw.
+            "sni":                            self.sni
+                                              or dns_hostname(self.dst_ip)
+                                              or dns_hostname(self.src_ip),
         }
 
 
@@ -234,6 +302,12 @@ class NetworkCollector:
             return
 
         self.packets_seen += 1
+
+        # Passive DNS: cache answer-IP → name from responses we sniff, so
+        # later flows to that IP can be named even without a parseable SNI.
+        if pkt.haslayer(DNS):
+            _cache_dns_response(pkt[DNS])
+
         ip      = pkt[IP]
         src_ip  = ip.src
         dst_ip  = ip.dst
