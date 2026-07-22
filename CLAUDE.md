@@ -118,12 +118,26 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 
 ---
 
-## Docker Deployment (added 2026-07-05)
+## Docker Deployment (added 2026-07-05; host-backend default since 2026-07-22)
+**Default = host-backend mode** (Live Scan + Network Discovery work). The
+`backend` service is behind the `with-backend` Compose profile, so a plain
+`up` starts only `db` + `frontend`; the API runs **natively on the host** so
+it can see real network adapters:
 ```bash
-docker compose up --build -d
-# Dashboard: http://localhost:3005  (admin/admin123)  ·  API: http://localhost:5000
+docker compose up -d                 # db + frontend only
+python backend/app.py                # run the API on the host, as Administrator
+# Dashboard: http://localhost:3005  (admin/admin123)  ·  API (host): http://localhost:5000
 ```
-- **Services:** `db` (postgres:16-alpine; schema.sql + immutability.sql auto-applied by initdb on a fresh volume), `backend` (python:3.14-slim + gunicorn, seeds users on start), `frontend` (node:20-alpine multi-stage, `next start`).
+**Full-container mode** (everything in Docker, but NO live capture — a
+container can't see host NICs, so Live Scan / Network Discovery are unavailable):
+```bash
+docker compose --profile with-backend up -d --build
+```
+> In host-backend mode the native Flask uses the **host PostgreSQL** (`.env`
+> → `DB_HOST=localhost`); the Docker `db` container is a separate store used
+> only by the containerised backend. The frontend has **no `depends_on`** — the
+> browser reaches the API on the host, not a sibling container.
+- **Services:** `db` (postgres:16-alpine; schema.sql + immutability.sql auto-applied by initdb on a fresh volume), `backend` (python:3.14-slim + gunicorn, seeds users on start; `with-backend` profile only), `frontend` (node:20-alpine multi-stage, `next start`).
 - **Host prerequisites (gitignored, volume-mounted read-only):** `ml/artifacts/` (train with `python ml/model.py`) and `data/` (CICIDS CSVs, needed for Run Detection). ML libs are **pinned in the Dockerfile** (scikit-learn 1.8.0 / numpy 2.4.2 / pandas 3.0.0 / joblib 1.5.3) to match the artifacts' training environment — bump the pins if artifacts are retrained under newer versions.
 - **Ports:** frontend published on **3005** (host 3000 is in a Windows excluded port range on the dev machine; 3005 is in Flask's CORS whitelist). `NEXT_PUBLIC_API_URL` is baked at image build time (compose build arg) — it must be the URL the *browser* uses.
 - **Live Scan is host-only:** a container on Docker Desktop/Windows cannot see the host's network adapters. For live capture demos run Flask directly on the host as Administrator.

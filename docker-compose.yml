@@ -1,16 +1,22 @@
-# Shadow IT Detection Framework — full stack
+# Shadow IT Detection Framework
 #
-#   docker compose up --build -d
-#   Dashboard: http://localhost:3005   (login: admin / admin123)
-#   API:       http://localhost:5000
+# DEFAULT (host-backend) mode — Live Scan + Network Discovery work:
+#   docker compose up -d            # starts db + frontend ONLY
+#   # then run the API natively, as Administrator (needs the host's NICs):
+#   python backend/app.py
+#   Dashboard: http://localhost:3005   API (host): http://localhost:5000
+#
+# FULL-CONTAINER mode — everything in Docker, but NO live capture
+# (a container on Docker Desktop/Windows cannot see the host's network
+# adapters, so Live Scan and Network Discovery are unavailable):
+#   docker compose --profile with-backend up -d --build
+#
+# The `backend` service is behind the `with-backend` profile so a plain
+# `up` never starts it and collides with the host Flask on port 5000.
 #
 # Prerequisites on the host (both are gitignored):
 #   ml/artifacts/  — run `python ml/model.py` once to train
 #   data/          — CICIDS2017 CSVs (only needed for Run Detection)
-#
-# Live Scan is a HOST-ONLY feature: a container on Docker Desktop/Windows
-# cannot capture the host's network adapters. Run Flask directly on the
-# host (as Administrator) for live capture demos.
 services:
   db:
     image: postgres:16-alpine
@@ -32,6 +38,11 @@ services:
 
   backend:
     build: .
+    # Excluded from a default `up` — the API runs natively on the host so
+    # Live Scan / Network Discovery can see real adapters. Start it in a
+    # container only for the no-live-capture full-Docker demo:
+    #   docker compose --profile with-backend up -d
+    profiles: ["with-backend"]
     # retry until db is ready — also covers out-of-order starts from the
     # Docker Desktop UI, which does not honor depends_on conditions
     restart: unless-stopped
@@ -58,10 +69,11 @@ services:
     build:
       context: ./frontend
       args:
-        # URL the BROWSER uses to reach the API (baked in at build time)
+        # URL the BROWSER uses to reach the API (baked in at build time).
+        # In host-backend mode this points at the native Flask on the host.
         NEXT_PUBLIC_API_URL: http://localhost:5000
-    depends_on:
-      - backend
+    # No depends_on: the browser reaches the API on the host, not a
+    # sibling container — so the frontend must not wait on a Docker backend.
     ports:
       # host 3000 is inside a Windows excluded port range on the dev
       # machine; 3005 is already in Flask's CORS whitelist
