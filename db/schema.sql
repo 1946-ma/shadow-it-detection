@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS detections (
     shadow_it_type  VARCHAR(20),
     risk_level      VARCHAR(10),
     anomaly_score   FLOAT,
+    app_category     VARCHAR(30),                -- SaaS category (catalog hits): ai, cloud-storage, vpn, …
+    detection_source VARCHAR(20) NOT NULL DEFAULT 'anomaly',  -- catalog | anomaly | active-scan
     detected_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_resolved     BOOLEAN NOT NULL DEFAULT FALSE
 );

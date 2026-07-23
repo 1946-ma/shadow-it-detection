@@ -55,7 +55,7 @@ def create_app() -> Flask:
     # ── POST /api/run-detection  (admin only) ──────────────────────────────────
     from backend.middleware.jwt_auth import token_required
     from backend.middleware.rbac     import admin_required
-    from backend.models.db_models    import execute, execute_many
+    from backend.models.db_models    import execute, insert_detections
 
     @app.route("/api/run-detection", methods=["POST"])
     @token_required
@@ -70,17 +70,7 @@ def create_app() -> Flask:
             results, elapsed = detect(df)
 
             # One connection, one transaction — atomic (all rows or none).
-            inserted = execute_many(
-                """INSERT INTO detections
-                   (src_ip, src_mac, dst_domain, protocol,
-                    bytes_sent, bytes_received, duration, device_type,
-                    shadow_it_type, risk_level, anomaly_score)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                [(r["src_ip"], r["src_mac"], r["dst_domain"], r["protocol"],
-                  r["bytes_sent"], r["bytes_received"], r["duration"], r["device_type"],
-                  r["shadow_it_type"], r["risk_level"], r["anomaly_score"])
-                 for r in results],
-            )
+            inserted = insert_detections(results)
 
             u = g.current_user
             execute(

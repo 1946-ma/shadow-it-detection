@@ -20,9 +20,13 @@ export interface Detection {
     shadow_it_type: ShadowItType | null
     risk_level: RiskLevel | null
     anomaly_score: number | null
+    app_category?: string | null       // SaaS category for catalog hits (Phase 2)
+    detection_source?: DetectionSource | null
     detected_at: string
     is_resolved: boolean
 }
+
+export type DetectionSource = 'catalog' | 'anomaly' | 'active-scan'
 
 export interface AuditLog {
     id: number
