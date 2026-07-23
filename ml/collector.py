@@ -17,11 +17,14 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
+from ml.oui import vendor_from_mac
+
 try:
     from scapy.all import sniff, get_if_list, conf
     from scapy.layers.inet import IP, TCP, UDP, ICMP
     from scapy.layers.l2 import Ether
     from scapy.layers.dns import DNS, DNSRR
+    from scapy.layers.dhcp import DHCP, BOOTP
     SCAPY_AVAILABLE = True
 except Exception:
     SCAPY_AVAILABLE = False
@@ -86,6 +89,97 @@ def dns_hostname(ip: str):
     """Hostname previously resolved to this IP, or None."""
     with _dns_lock:
         return _dns_cache.get(ip)
+
+
+# ── Device-name cache (DHCP option-12 / mDNS .local → device hostname) ─────────
+# Names the DEVICE (not the destination): a DHCP request carries the client's
+# own hostname ("Johns-Laptop"), and mDNS announces "Johns-iPhone.local". Keyed
+# by both IP and MAC so detect() can identify the source device. Complements the
+# MAC-OUI vendor lookup in ml/oui.py.
+_DEVICE_CACHE_MAX = 4096
+_device_names: dict[str, str] = {}
+_device_lock = threading.Lock()
+
+
+def _norm_mac(mac: str) -> str:
+    return "".join(c for c in mac.lower() if c in "0123456789abcdef") if mac else ""
+
+
+def _trim(cache: dict):
+    while len(cache) > _DEVICE_CACHE_MAX:
+        cache.pop(next(iter(cache)))
+
+
+def _cache_dhcp(pkt):
+    """Map client MAC/IP → hostname from a DHCP packet's option 12."""
+    try:
+        hostname, req_ip = None, None
+        for opt in pkt[DHCP].options:
+            if isinstance(opt, tuple) and opt[0] == "hostname":
+                hn = opt[1]
+                hostname = hn.decode("ascii", "ignore") if isinstance(hn, bytes) else str(hn)
+            elif isinstance(opt, tuple) and opt[0] == "requested_addr":
+                req_ip = str(opt[1])
+        if not hostname:
+            return
+        hostname = hostname.strip().rstrip(".")
+        mac    = pkt[Ether].src if pkt.haslayer(Ether) else None
+        yiaddr = pkt[BOOTP].yiaddr if pkt.haslayer(BOOTP) else None
+        with _device_lock:
+            if mac:
+                _device_names[_norm_mac(mac)] = hostname
+            for ip in (req_ip, yiaddr):
+                if ip and ip != "0.0.0.0":
+                    _device_names[str(ip)] = hostname
+            _trim(_device_names)
+    except Exception:
+        pass   # malformed DHCP must never break capture
+
+
+def _cache_mdns(pkt):
+    """Map IP → device name from mDNS .local A/AAAA answers."""
+    try:
+        dns = pkt[DNS]
+        if not dns.ancount:
+            return
+        an = dns.an
+        answers = an if isinstance(an, list) else _dns_chain(an)
+        with _device_lock:
+            for rr in answers:
+                if getattr(rr, "type", None) not in (1, 28):
+                    continue
+                name = rr.rrname
+                if isinstance(name, bytes):
+                    name = name.decode("ascii", "ignore")
+                name = name.rstrip(".").lower()
+                ip = rr.rdata
+                if isinstance(ip, bytes):
+                    ip = ip.decode("ascii", "ignore")
+                if ip and name.endswith(".local"):
+                    _device_names[str(ip)] = name
+            _trim(_device_names)
+    except Exception:
+        pass
+
+
+def _dns_chain(rr):
+    out = []
+    while isinstance(rr, DNSRR):
+        out.append(rr)
+        rr = rr.payload
+    return out
+
+
+def device_hostname(ip: str = None, mac: str = None):
+    """Device hostname seen via DHCP/mDNS, by MAC (preferred) or IP; else None."""
+    with _device_lock:
+        if mac:
+            h = _device_names.get(_norm_mac(mac))
+            if h:
+                return h
+        if ip:
+            return _device_names.get(ip)
+    return None
 
 
 # ── Service-name extraction (SNI / HTTP Host) ──────────────────────────────────
@@ -258,6 +352,10 @@ class FlowRecord:
             "sni":                            self.sni
                                               or dns_hostname(self.dst_ip)
                                               or dns_hostname(self.src_ip),
+            # Source-device hostname (DHCP/mDNS) — detect() combines it with the
+            # MAC-OUI vendor to identify the device.
+            "device_hostname":                device_hostname(ip=self.src_ip, mac=self.src_mac)
+                                              or device_hostname(ip=self.dst_ip),
         }
 
 
@@ -316,8 +414,15 @@ class NetworkCollector:
 
         # Passive DNS: cache answer-IP → name from responses we sniff, so
         # later flows to that IP can be named even without a parseable SNI.
+        # mDNS (UDP 5353) names the DEVICE (.local) rather than a destination.
         if pkt.haslayer(DNS):
-            _cache_dns_response(pkt[DNS])
+            if pkt.haslayer(UDP) and (pkt[UDP].sport == 5353 or pkt[UDP].dport == 5353):
+                _cache_mdns(pkt)
+            else:
+                _cache_dns_response(pkt[DNS])
+        # DHCP option-12 carries the client's own hostname.
+        if pkt.haslayer(DHCP):
+            _cache_dhcp(pkt)
 
         ip      = pkt[IP]
         src_ip  = ip.src
@@ -601,17 +706,20 @@ def scan_to_detections(scan_results: list[dict]) -> list[dict]:
     for dev in scan_results:
         for svc in dev["services"]:
             records.append({
-                "src_ip":         dev["ip"],
-                "src_mac":        dev.get("mac", "Unknown"),
-                "dst_domain":     f'{svc["service"]}:{svc["port"]}',
-                "protocol":       "TCP",
-                "bytes_sent":     0,
-                "bytes_received": 0,
-                "duration":       0,
-                "device_type":    "network-host",
-                "shadow_it_type": "software",
-                "risk_level":     _RISKY_PORTS.get(svc["port"], "low"),
-                "anomaly_score":  0.0,
+                "src_ip":           dev["ip"],
+                "src_mac":          dev.get("mac", "Unknown"),
+                "dst_domain":       f'{svc["service"]}:{svc["port"]}',
+                "protocol":         "TCP",
+                "bytes_sent":       0,
+                "bytes_received":   0,
+                "duration":         0,
+                # Identify the device vendor from its MAC (OUI) where possible.
+                "device_type":      vendor_from_mac(dev.get("mac")) or "network-host",
+                "shadow_it_type":   "software",
+                "risk_level":       _RISKY_PORTS.get(svc["port"], "low"),
+                "anomaly_score":    0.0,
+                "app_category":     "exposed-service",
+                "detection_source": "active-scan",
             })
     return records
 
