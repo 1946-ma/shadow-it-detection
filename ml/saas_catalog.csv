@@ -1,0 +1,93 @@
+# Shadow IT SaaS / Cloud-App Catalog
+# ---------------------------------------------------------------------------
+# Known cloud services whose use — when NOT on the sanctioned allowlist
+# (ml/sanctioned_services.txt) — constitutes Shadow IT. detect() matches a
+# flow's extracted destination hostname (TLS SNI / HTTP Host / passive DNS)
+# against these entries and flags UNSANCTIONED matches as Shadow IT, entirely
+# independent of the ML anomaly score. This is the signal that actually
+# answers the project title: normal-looking traffic to an unauthorised cloud
+# app is invisible to an intrusion model but is exactly what Shadow IT is.
+#
+# Matching = exact host or subdomain (drive.google.com matches
+# my.drive.google.com; the most specific catalog entry wins).
+#
+# Columns: domain,app_name,category,risk
+#   risk drives risk_level when a flow is flagged by the catalog (not the ML).
+#   Categories with data-exfiltration / policy-evasion potential score higher.
+# Lines starting with # are comments.
+# ---------------------------------------------------------------------------
+domain,app_name,category,risk
+# ── Cloud storage / file-sharing (data exfiltration) ──
+dropbox.com,Dropbox,cloud-storage,high
+drive.google.com,Google Drive,cloud-storage,high
+onedrive.live.com,OneDrive (personal),cloud-storage,high
+icloud.com,iCloud,cloud-storage,high
+box.com,Box,cloud-storage,high
+mega.nz,MEGA,file-sharing,high
+wetransfer.com,WeTransfer,file-sharing,high
+mediafire.com,MediaFire,file-sharing,high
+sync.com,Sync.com,cloud-storage,high
+pcloud.com,pCloud,cloud-storage,high
+# ── Generative AI (data leakage) ──
+chatgpt.com,ChatGPT,ai,high
+chat.openai.com,ChatGPT,ai,high
+claude.ai,Claude,ai,high
+gemini.google.com,Google Gemini,ai,high
+perplexity.ai,Perplexity,ai,medium
+copilot.microsoft.com,Microsoft Copilot,ai,medium
+huggingface.co,Hugging Face,ai,medium
+character.ai,Character.AI,ai,medium
+# ── Remote access (unmanaged control channels) ──
+teamviewer.com,TeamViewer,remote-access,high
+anydesk.com,AnyDesk,remote-access,high
+ngrok.com,ngrok,remote-access,high
+ngrok.io,ngrok,remote-access,high
+logmein.com,LogMeIn,remote-access,high
+rustdesk.com,RustDesk,remote-access,high
+# ── VPN / proxy (policy evasion) ──
+nordvpn.com,NordVPN,vpn,high
+expressvpn.com,ExpressVPN,vpn,high
+protonvpn.com,Proton VPN,vpn,high
+tunnelbear.com,TunnelBear,vpn,high
+hola.org,Hola VPN,vpn,high
+psiphon3.com,Psiphon,proxy,high
+torproject.org,Tor,proxy,high
+tailscale.com,Tailscale,vpn,medium
+# ── Messaging (unsanctioned comms) ──
+telegram.org,Telegram,messaging,medium
+t.me,Telegram,messaging,medium
+whatsapp.net,WhatsApp,messaging,medium
+whatsapp.com,WhatsApp,messaging,medium
+discord.com,Discord,messaging,medium
+discord.gg,Discord,messaging,medium
+signal.org,Signal,messaging,medium
+messenger.com,Messenger,messaging,medium
+viber.com,Viber,messaging,medium
+slack.com,Slack,messaging,medium
+# ── Personal email ──
+mail.google.com,Gmail (personal),email,medium
+outlook.live.com,Outlook (personal),email,medium
+proton.me,Proton Mail,email,medium
+# ── Productivity / collaboration ──
+notion.so,Notion,productivity,medium
+trello.com,Trello,productivity,medium
+airtable.com,Airtable,productivity,medium
+asana.com,Asana,productivity,medium
+clickup.com,ClickUp,productivity,medium
+evernote.com,Evernote,productivity,medium
+# ── Code / dev (source exfiltration) ──
+github.com,GitHub,code,medium
+gitlab.com,GitLab,code,medium
+bitbucket.org,Bitbucket,code,medium
+pastebin.com,Pastebin,code,high
+replit.com,Replit,code,medium
+# ── Social / streaming (productivity / low data risk) ──
+facebook.com,Facebook,social,low
+instagram.com,Instagram,social,low
+tiktok.com,TikTok,social,medium
+snapchat.com,Snapchat,social,low
+reddit.com,Reddit,social,low
+youtube.com,YouTube,streaming,low
+netflix.com,Netflix,streaming,low
+spotify.com,Spotify,streaming,low
+twitch.tv,Twitch,streaming,low

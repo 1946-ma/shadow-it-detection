@@ -14,11 +14,13 @@ import joblib
 
 from ml.load_cicids import FEATURE_COLS, load_all, train_mask
 from ml.preprocess  import preprocess, save_scaler, load_scaler
+from ml.oui         import vendor_from_mac
 
 ARTIFACTS      = os.path.join(os.path.dirname(__file__), "artifacts")
 MODEL_PATH     = os.path.join(ARTIFACTS, "isolation_forest.pkl")
 RF_PATH        = os.path.join(ARTIFACTS, "random_forest.pkl")
 ALLOWLIST_PATH = os.path.join(os.path.dirname(__file__), "sanctioned_services.txt")
+CATALOG_PATH   = os.path.join(os.path.dirname(__file__), "saas_catalog.csv")
 
 
 # ── Sanctioned-services allowlist ──────────────────────────────────────────────
@@ -42,6 +44,53 @@ def is_sanctioned(host: str, allowlist: set[str]) -> bool:
         return False
     host = host.lower().rstrip(".")
     return any(host == e or host.endswith("." + e) for e in allowlist)
+
+
+# ── Shadow IT SaaS catalog ─────────────────────────────────────────────────────
+# Known cloud apps → (app_name, category, risk). Matching an UNSANCTIONED entry
+# flags a flow as Shadow IT regardless of the ML anomaly score — the signal the
+# anomaly model can't provide, because unauthorised-app traffic looks normal.
+_CATALOG_RISK = {"high", "medium", "low"}
+
+
+def load_saas_catalog(path: str = CATALOG_PATH) -> dict[str, dict]:
+    """domain → {app_name, category, risk}, lowercased keys. Empty if no file."""
+    catalog: dict[str, dict] = {}
+    if not os.path.exists(path):
+        return catalog
+    import csv
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.lstrip().startswith("#") or not line.strip():
+                continue
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) < 4 or parts[0].lower() == "domain":
+                continue
+            domain, app_name, category, risk = parts[0], parts[1], parts[2], parts[3].lower()
+            if domain and risk in _CATALOG_RISK:
+                catalog[domain.lower()] = {"app_name": app_name, "category": category, "risk": risk}
+    return catalog
+
+
+def match_saas(host: str, catalog: dict[str, dict]) -> dict | None:
+    """Most-specific catalog entry matching host (exact or subdomain), or None."""
+    if not catalog or not host:
+        return None
+    host = host.lower().rstrip(".")
+    best, best_len = None, -1
+    for domain, meta in catalog.items():
+        if (host == domain or host.endswith("." + domain)) and len(domain) > best_len:
+            best, best_len = meta, len(domain)
+    return best
+
+
+def _device_label(mac: str, hostname) -> str:
+    """Human device identity from MAC vendor (OUI) + DHCP/mDNS hostname."""
+    vendor = vendor_from_mac(mac)
+    host   = hostname if isinstance(hostname, str) and hostname else None
+    if vendor and host:
+        return f"{vendor} · {host}"
+    return vendor or host or "unknown"
 
 
 # ── Risk classification ────────────────────────────────────────────────────────
@@ -215,46 +264,72 @@ def detect(records):
         flagged |= rf.predict(X) == 1
 
     allowlist  = load_allowlist()
+    catalog    = load_saas_catalog()
     suppressed = 0
+    saas_hits  = 0
 
     results = []
-    for i, (flag, score) in enumerate(zip(flagged, scores)):
-        if flag:
-            row   = df_clean.iloc[i].to_dict()
+    for i in range(len(df_clean)):
+        row = df_clean.iloc[i].to_dict()
+        score = float(scores[i])
+
+        # Extracted service hostname (TLS SNI / HTTP Host / passive DNS). CICIDS
+        # records have no "sni" and fall back to the raw destination IP.
+        sni  = row.get("sni")
+        host = sni if isinstance(sni, str) and sni else None
+        dst  = host or str(row.get("Destination IP", "Unknown"))
+
+        # Sanctioned services are authorised IT, not Shadow IT — always suppress
+        # (named destinations only; a raw IP can't be verified as sanctioned).
+        if host and is_sanctioned(host, allowlist):
+            suppressed += 1
+            continue
+
+        # ── Two independent detection paths ────────────────────────────────────
+        #  (a) SaaS catalog: an unsanctioned known cloud app IS Shadow IT even if
+        #      the flow looks perfectly normal to the ML model.
+        #  (b) Anomaly: the hybrid IF+RF flags unusual/attack-like traffic.
+        app = match_saas(host, catalog) if host else None
+        if app:
+            saas_hits += 1
+            stype    = "software"
+            risk     = app["risk"]
+            dst      = f'{app["app_name"]} ({host})'
+            category = app["category"]
+            source   = "catalog"
+        elif flagged[i]:
             stype = row.get("shadow_it_type") or _infer_type(row)
             if stype == "none":
                 stype = _infer_type(row)
-            risk  = classify_risk(score, stype)
+            risk     = classify_risk(score, stype)
+            category = None
+            source   = "anomaly"
+        else:
+            continue   # neither a known unsanctioned app nor anomalous — skip
 
-            # Prefer the extracted service hostname (TLS SNI / HTTP Host) over
-            # the raw destination IP — CICIDS records have no "sni" field and
-            # fall back to the IP.
-            sni = row.get("sni")
-            dst = sni if isinstance(sni, str) and sni else str(row.get("Destination IP", "Unknown"))
-
-            # Sanctioned services are authorized IT, not Shadow IT — suppress.
-            # Only named destinations can match; raw IPs always alert.
-            if is_sanctioned(dst, allowlist):
-                suppressed += 1
-                continue
-
-            results.append({
-                "src_ip":         str(row.get("Source IP",         "0.0.0.0")),
-                "src_mac":        str(row.get("src_mac",           "Unknown")),
-                "dst_domain":     dst,
-                "protocol":       _proto_name(row.get("Protocol",  6)),
-                "bytes_sent":     int(float(row.get("Total Length of Fwd Packets", 0))),
-                "bytes_received": int(float(row.get("Total Length of Bwd Packets", 0))),
-                "duration":       round(float(row.get("Flow Duration", 0)) / 1_000_000, 4),
-                "device_type":    str(row.get("device_type", "unknown")),
-                "shadow_it_type": stype,
-                "risk_level":     risk,
-                "anomaly_score":  float(score),
-            })
+        results.append({
+            "src_ip":           str(row.get("Source IP",         "0.0.0.0")),
+            "src_mac":          str(row.get("src_mac",           "Unknown")),
+            "dst_domain":       dst,
+            "protocol":         _proto_name(row.get("Protocol",  6)),
+            "bytes_sent":       int(float(row.get("Total Length of Fwd Packets", 0))),
+            "bytes_received":   int(float(row.get("Total Length of Bwd Packets", 0))),
+            "duration":         round(float(row.get("Flow Duration", 0)) / 1_000_000, 4),
+            # Device identity: MAC OUI vendor + DHCP/mDNS hostname when known.
+            "device_type":      _device_label(row.get("src_mac"), row.get("device_hostname")),
+            "shadow_it_type":   stype,
+            "risk_level":       risk,
+            "anomaly_score":    score,
+            "app_category":     category,   # SaaS category for catalog hits, else None
+            "detection_source": source,     # 'catalog' | 'anomaly'
+        })
 
     elapsed = time.time() - t0
-    note = f" ({suppressed} sanctioned-service flows suppressed)" if suppressed else ""
-    print(f"detect(): {len(results)} anomalies / {len(df_clean)} records in {elapsed:.3f}s{note}")
+    notes = []
+    if saas_hits:  notes.append(f"{saas_hits} unsanctioned SaaS")
+    if suppressed: notes.append(f"{suppressed} sanctioned suppressed")
+    note = f" ({', '.join(notes)})" if notes else ""
+    print(f"detect(): {len(results)} detections / {len(df_clean)} records in {elapsed:.3f}s{note}")
     return results, elapsed
 
 
