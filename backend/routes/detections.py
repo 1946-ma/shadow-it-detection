@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from flask import Blueprint, request, jsonify, g, Response
 
-from backend.models.db_models import execute
+from backend.models.db_models import execute, detections_has_shadowit_cols
 from backend.middleware.jwt_auth import token_required
 from backend.middleware.rbac import admin_required
 
@@ -28,8 +28,9 @@ def _valid_date(value, name):
 
 
 # Whitelist filter values so only known-good tokens reach the query.
-_ALLOWED_RISK = {"high", "medium", "low"}
-_ALLOWED_TYPE = {"software", "hardware", "mixed", "none"}
+_ALLOWED_RISK   = {"high", "medium", "low"}
+_ALLOWED_TYPE   = {"software", "hardware", "mixed", "none"}
+_ALLOWED_SOURCE = {"catalog", "anomaly", "active-scan"}
 
 
 def _parse_filters(args):
@@ -39,12 +40,34 @@ def _parse_filters(args):
     stype = args.get("type")
     if stype is not None and stype not in _ALLOWED_TYPE:
         raise _BadParam("Invalid 'type' filter")
+    source = args.get("source")
+    if source is not None and source not in _ALLOWED_SOURCE:
+        raise _BadParam("Invalid 'source' filter")
     return {
         "type":      stype,
         "risk":      risk,
+        "source":    source,
         "date_from": _valid_date(args.get("date_from"), "date_from"),
         "date_to":   _valid_date(args.get("date_to"), "date_to"),
     }
+
+
+def _apply_filters(f):
+    """Build WHERE conditions + params from parsed filters (shared by list and
+    export). The source filter is only applied when the column exists."""
+    conds, params = [], []
+    if f["type"]:
+        conds.append("shadow_it_type = %s"); params.append(f["type"])
+    if f["risk"]:
+        conds.append("risk_level = %s"); params.append(f["risk"])
+    if f["source"] and detections_has_shadowit_cols():
+        conds.append("detection_source = %s"); params.append(f["source"])
+    if f["date_from"]:
+        conds.append("detected_at >= %s"); params.append(f["date_from"])
+    if f["date_to"]:
+        conds.append("detected_at <= %s"); params.append(f["date_to"])
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
 
 
 def _audit(user_id, action, target, ip):
@@ -82,20 +105,7 @@ def list_detections():
     except (_BadParam, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
-    shadow_type, risk_level = f["type"], f["risk"]
-    date_from, date_to      = f["date_from"], f["date_to"]
-
-    conds, params = [], []
-    if shadow_type:
-        conds.append("shadow_it_type = %s"); params.append(shadow_type)
-    if risk_level:
-        conds.append("risk_level = %s"); params.append(risk_level)
-    if date_from:
-        conds.append("detected_at >= %s"); params.append(date_from)
-    if date_to:
-        conds.append("detected_at <= %s"); params.append(date_to)
-
-    where  = ("WHERE " + " AND ".join(conds)) if conds else ""
+    where, params = _apply_filters(f)
     offset = (page - 1) * per_page
     params += [per_page, offset]
 
@@ -120,30 +130,24 @@ def export_detections():
     except (_BadParam, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
-    shadow_type, risk_level = f["type"], f["risk"]
-    date_from, date_to      = f["date_from"], f["date_to"]
+    where, params = _apply_filters(f)
 
-    conds, params = [], []
-    if shadow_type:
-        conds.append("shadow_it_type = %s"); params.append(shadow_type)
-    if risk_level:
-        conds.append("risk_level = %s"); params.append(risk_level)
-    if date_from:
-        conds.append("detected_at >= %s"); params.append(date_from)
-    if date_to:
-        conds.append("detected_at <= %s"); params.append(date_to)
+    # Include the Phase-2 categorisation columns when the migration has run.
+    extra_sql    = ", app_category, detection_source" if detections_has_shadowit_cols() else ""
+    extra_fields = ["app_category", "detection_source"] if detections_has_shadowit_cols() else []
 
-    where = ("WHERE " + " AND ".join(conds)) if conds else ""
     rows = execute(
         f"SELECT id, src_ip, src_mac, dst_domain, protocol, bytes_sent, bytes_received, "
-        f"duration, device_type, shadow_it_type, risk_level, anomaly_score, is_resolved, detected_at "
+        f"duration, device_type, shadow_it_type, risk_level, anomaly_score{extra_sql}, "
+        f"is_resolved, detected_at "
         f"FROM detections {where} ORDER BY detected_at DESC",
         params, fetch="all",
     ) or []
 
-    fields = ["id", "src_ip", "src_mac", "dst_domain", "protocol", "bytes_sent",
-              "bytes_received", "duration", "device_type", "shadow_it_type",
-              "risk_level", "anomaly_score", "is_resolved", "detected_at"]
+    fields = (["id", "src_ip", "src_mac", "dst_domain", "protocol", "bytes_sent",
+               "bytes_received", "duration", "device_type", "shadow_it_type",
+               "risk_level", "anomaly_score"] + extra_fields +
+              ["is_resolved", "detected_at"])
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()

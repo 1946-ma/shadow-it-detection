@@ -21,6 +21,16 @@ const getRiskColor = (risk: string | null) => {
     }
 }
 
+// How each detection was found: an unsanctioned known cloud app (catalog),
+// an ML anomaly, or an active network scan.
+const SOURCE_META: Record<string, { label: string; cls: string }> = {
+    catalog:       { label: 'Unsanctioned SaaS', cls: 'bg-red-500/15 text-red-300 border-red-500/25' },
+    anomaly:       { label: 'ML Anomaly',        cls: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
+    'active-scan': { label: 'Network Scan',      cls: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
+}
+const sourceMeta = (s?: string | null) =>
+    (s && SOURCE_META[s]) || { label: s || '—', cls: 'bg-slate-500/15 text-slate-300 border-slate-500/25' }
+
 function formatTimestamp(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -37,6 +47,7 @@ function AlertsPageInner() {
     const [page, setPage] = useState(1)
     const [typeFilter, setTypeFilter] = useState('')
     const [riskFilter, setRiskFilter] = useState(searchParams.get('risk') || '')
+    const [sourceFilter, setSourceFilter] = useState(searchParams.get('source') || '')
     const [loading, setLoading] = useState(true)
     const [selected, setSelected] = useState<Detection | null>(null)
     const [resolving, setResolving] = useState(false)
@@ -49,6 +60,7 @@ function AlertsPageInner() {
             const params: Record<string, unknown> = { page, per_page: PAGE_SIZE }
             if (typeFilter) params.type = typeFilter
             if (riskFilter) params.risk = riskFilter
+            if (sourceFilter) params.source = sourceFilter
             const res = await detectionsApi.list(params)
             setDetections(res.data.detections || [])
             setTotal(res.data.total || 0)
@@ -57,11 +69,11 @@ function AlertsPageInner() {
         } finally {
             setLoading(false)
         }
-    }, [page, typeFilter, riskFilter])
+    }, [page, typeFilter, riskFilter, sourceFilter])
 
     useEffect(() => { load() }, [load])
     useEffect(() => { statsApi.get().then((r) => setSummary(r.data)).catch(() => {}) }, [])
-    useEffect(() => { setPage(1) }, [typeFilter, riskFilter])
+    useEffect(() => { setPage(1) }, [typeFilter, riskFilter, sourceFilter])
 
     const markResolved = useCallback(async (id: number) => {
         setResolving(true)
@@ -82,6 +94,7 @@ function AlertsPageInner() {
             const params: Record<string, unknown> = {}
             if (typeFilter) params.type = typeFilter
             if (riskFilter) params.risk = riskFilter
+            if (sourceFilter) params.source = sourceFilter
             const res = await detectionsApi.export(params)
             const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
             const a = document.createElement('a')
@@ -131,7 +144,14 @@ function AlertsPageInner() {
                         {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Export CSV
                     </motion.button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                        <option value="">All Sources</option>
+                        <option value="catalog">Unsanctioned SaaS</option>
+                        <option value="anomaly">ML Anomaly</option>
+                        <option value="active-scan">Network Scan</option>
+                    </select>
                     <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
                         <option value="">All Types</option>
@@ -169,6 +189,7 @@ function AlertsPageInner() {
                                         <th className="text-left py-3 px-4">Timestamp</th>
                                         <th className="text-left py-3 px-4">Source IP</th>
                                         <th className="text-left py-3 px-4">Destination</th>
+                                        <th className="text-left py-3 px-4">Source</th>
                                         <th className="text-left py-3 px-4">Type</th>
                                         <th className="text-left py-3 px-4">Risk Level</th>
                                         <th className="text-left py-3 px-4">Score</th>
@@ -186,6 +207,11 @@ function AlertsPageInner() {
                                                 <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatTimestamp(detection.detected_at)}</td>
                                                 <td className="py-3 px-4 text-xs font-mono text-slate-700 dark:text-slate-300">{detection.src_ip}</td>
                                                 <td className="py-3 px-4 text-xs text-slate-700 dark:text-slate-300 max-w-[180px] truncate">{detection.dst_domain || '—'}</td>
+                                                <td className="py-3 px-4 text-xs">
+                                                    <span className={`px-2 py-1 rounded border text-[11px] font-medium ${sourceMeta(detection.detection_source).cls}`}>
+                                                        {sourceMeta(detection.detection_source).label}
+                                                    </span>
+                                                </td>
                                                 <td className="py-3 px-4 text-xs"><span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300">{detection.shadow_it_type || 'Unknown'}</span></td>
                                                 <td className="py-3 px-4">
                                                     <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${riskConfig.bg} border ${riskConfig.border}`}>
@@ -267,8 +293,10 @@ function AlertsPageInner() {
                                         { label: 'Source IP', value: selected.src_ip, mono: true },
                                         { label: 'MAC Address', value: selected.src_mac || '—', mono: true },
                                         { label: 'Destination', value: selected.dst_domain || '—' },
+                                        { label: 'Detection Source', value: sourceMeta(selected.detection_source).label },
+                                        { label: 'App Category', value: selected.app_category || '—' },
                                         { label: 'Protocol', value: selected.protocol || '—' },
-                                        { label: 'Device Type', value: selected.device_type || '—' },
+                                        { label: 'Device', value: selected.device_type || '—' },
                                         { label: 'Shadow IT Type', value: selected.shadow_it_type || '—' },
                                         { label: 'Bytes Sent', value: `${selected.bytes_sent.toLocaleString()} B` },
                                         { label: 'Bytes Received', value: `${selected.bytes_received.toLocaleString()} B` },
