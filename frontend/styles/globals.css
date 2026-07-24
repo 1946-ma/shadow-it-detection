@@ -1591,3 +1591,53 @@ html:not(.dark) .bg-amber-500.text-white,
 html:not(.dark) .bg-orange-500.text-white,
 html:not(.dark) .bg-purple-500.text-white,
 html:not(.dark) [class*="bg-gradient"].text-white { color: #ffffff !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   AI ASSISTANT — rendered Markdown answers (.md-body)
+   Teal-minimal styling for the assistant's Markdown replies (headings,
+   lists, bold, links, code, and GFM tables).
+   ══════════════════════════════════════════════════════════════════ */
+.md-body { color: #14201f; font-size: 13.5px; line-height: 1.6; }
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body p { margin: 0 0 10px; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4 {
+    margin: 16px 0 8px; font-weight: 650; line-height: 1.25; color: #14201f;
+}
+.md-body h1 { font-size: 17px; }
+.md-body h2 { font-size: 15.5px; }
+.md-body h3 { font-size: 14px; }
+.md-body h4 { font-size: 13px; }
+.md-body ul, .md-body ol { margin: 0 0 10px; padding-left: 20px; }
+.md-body ul { list-style: disc; }
+.md-body ol { list-style: decimal; }
+.md-body li { margin: 3px 0; }
+.md-body li > ul, .md-body li > ol { margin: 4px 0; }
+.md-body strong { font-weight: 650; color: #14201f; }
+.md-body em { font-style: italic; }
+.md-body a { color: #2a7477; text-decoration: underline; }
+.md-body a:hover { color: #1f5658; }
+.md-body code {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    font-size: 12px; background: rgba(20,32,31,0.06); padding: 1px 5px; border-radius: 5px;
+}
+.md-body pre {
+    background: #f5f6f6; border: 1px solid #e6e9e8; border-radius: 10px;
+    padding: 12px; overflow-x: auto; margin: 0 0 10px;
+}
+.md-body pre code { background: none; padding: 0; font-size: 12px; }
+.md-body blockquote {
+    border-left: 3px solid #7fb0b2; padding: 2px 0 2px 12px; margin: 0 0 10px; color: #6b7089;
+}
+.md-body hr { border: none; border-top: 1px solid #e6e9e8; margin: 14px 0; }
+/* GFM tables — own horizontal scroll so wide tables never break the bubble */
+.md-body table {
+    display: block; width: max-content; max-width: 100%; overflow-x: auto;
+    border-collapse: collapse; margin: 0 0 12px; font-size: 12.5px;
+}
+.md-body th, .md-body td {
+    border: 1px solid #e6e9e8; padding: 6px 10px; text-align: left; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.md-body th { background: #f5f6f6; font-weight: 650; color: #14201f; }
+.md-body tbody tr:nth-child(even) td, .md-body tbody tr:nth-child(even) td { background: #fafbfb; }

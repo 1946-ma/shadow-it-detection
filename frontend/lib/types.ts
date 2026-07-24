@@ -148,3 +148,9 @@ export interface DiscoverResponse {
     saved: number
     subnet: string
 }
+
+export interface AssistantResponse {
+    answer: string
+    model: string
+    tools_used?: string[]
+}

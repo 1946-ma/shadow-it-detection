@@ -69,6 +69,13 @@ export const reportApi = {
     generate: () => api.get('/api/report/generate', { responseType: 'blob' }),
 }
 
+export const assistantApi = {
+    // LLM round-trips can take a while — allow a longer client timeout.
+    // `history` = prior { role, content } turns for multi-turn memory.
+    ask: (question: string, history?: { role: string; content: string }[]) =>
+        api.post('/api/assistant/ask', { question, history }, { timeout: 60000 }),
+}
+
 export const scanApi = {
     interfaces: () => api.get('/api/scan/interfaces'),
     start: (iface?: string) => api.post('/api/scan/start', { iface }),

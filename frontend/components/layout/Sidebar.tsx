@@ -7,7 +7,7 @@ import { clearAuth } from '@/lib/auth'
 import Cookies from 'js-cookie'
 import {
     LayoutDashboard, AlertCircle, Monitor, Package,
-    FileText, Settings, LogOut, BarChart3, Shield, Wifi,
+    FileText, Settings, LogOut, BarChart3, Shield, Wifi, Sparkles,
 } from 'lucide-react'
 
 const WK = { indigo: '#2a7477', ink: '#14201f', muted: '#6b7089', line: '#e6e9e8', hover: '#f2f3fb' }
@@ -18,6 +18,7 @@ const navItems = [
     { href: '/dashboard/devices',      label: 'Devices',      icon: Monitor },
     { href: '/dashboard/applications', label: 'Applications', icon: Package },
     { href: '/dashboard/reports',      label: 'Reports',      icon: BarChart3 },
+    { href: '/dashboard/assistant',    label: 'AI Assistant', icon: Sparkles, adminOnly: true },
     { href: '/dashboard/live-scan',    label: 'Live Scan',    icon: Wifi, adminOnly: true },
     { href: '/dashboard/audit',        label: 'Audit Trail',  icon: FileText, adminOnly: true },
 ]

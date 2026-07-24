@@ -12,3 +12,4 @@ joblib
 Werkzeug==3.0.1
 scapy
 reportlab
+anthropic
