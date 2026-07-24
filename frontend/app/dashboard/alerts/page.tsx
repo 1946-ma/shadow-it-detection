@@ -24,9 +24,10 @@ const getRiskColor = (risk: string | null) => {
 // How each detection was found: an unsanctioned known cloud app (catalog),
 // an ML anomaly, or an active network scan.
 const SOURCE_META: Record<string, { label: string; cls: string }> = {
-    catalog:       { label: 'Unsanctioned SaaS', cls: 'bg-red-500/15 text-red-300 border-red-500/25' },
-    anomaly:       { label: 'ML Anomaly',        cls: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
-    'active-scan': { label: 'Network Scan',      cls: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
+    catalog:              { label: 'Unsanctioned SaaS',  cls: 'bg-red-500/15 text-red-300 border-red-500/25' },
+    anomaly:              { label: 'ML Anomaly',         cls: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
+    'active-scan':        { label: 'Network Scan',       cls: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
+    'concurrent-session': { label: 'Concurrent Session', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/25' },
 }
 const sourceMeta = (s?: string | null) =>
     (s && SOURCE_META[s]) || { label: s || '—', cls: 'bg-slate-500/15 text-slate-300 border-slate-500/25' }
@@ -151,6 +152,7 @@ function AlertsPageInner() {
                         <option value="catalog">Unsanctioned SaaS</option>
                         <option value="anomaly">ML Anomaly</option>
                         <option value="active-scan">Network Scan</option>
+                        <option value="concurrent-session">Concurrent Session</option>
                     </select>
                     <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
@@ -158,6 +160,7 @@ function AlertsPageInner() {
                         <option value="software">Software</option>
                         <option value="hardware">Hardware</option>
                         <option value="mixed">Mixed</option>
+                        <option value="identity">Identity</option>
                     </select>
                     <select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)}
                         className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">

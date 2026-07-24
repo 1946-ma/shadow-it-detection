@@ -4,7 +4,7 @@ export interface User {
     role: 'admin' | 'viewer'
 }
 
-export type ShadowItType = 'hardware' | 'software' | 'mixed'
+export type ShadowItType = 'hardware' | 'software' | 'mixed' | 'identity'
 export type RiskLevel = 'high' | 'medium' | 'low'
 
 export interface Detection {
@@ -26,7 +26,7 @@ export interface Detection {
     is_resolved: boolean
 }
 
-export type DetectionSource = 'catalog' | 'anomaly' | 'active-scan'
+export type DetectionSource = 'catalog' | 'anomaly' | 'active-scan' | 'concurrent-session'
 
 export interface AuditLog {
     id: number

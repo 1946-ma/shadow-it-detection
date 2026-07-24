@@ -29,8 +29,8 @@ def _valid_date(value, name):
 
 # Whitelist filter values so only known-good tokens reach the query.
 _ALLOWED_RISK   = {"high", "medium", "low"}
-_ALLOWED_TYPE   = {"software", "hardware", "mixed", "none"}
-_ALLOWED_SOURCE = {"catalog", "anomaly", "active-scan"}
+_ALLOWED_TYPE   = {"software", "hardware", "mixed", "none", "identity"}
+_ALLOWED_SOURCE = {"catalog", "anomaly", "active-scan", "concurrent-session"}
 
 
 def _parse_filters(args):

@@ -47,6 +47,20 @@ CREATE TABLE IF NOT EXISTS token_denylist (
     expires_at  TIMESTAMPTZ NOT NULL
 );
 
+-- Live login sessions (one row per issued JWT). Drives concurrent-session
+-- (identity Shadow IT) detection: a single account active from more than N
+-- distinct IPs at once indicates credential sharing.
+CREATE TABLE IF NOT EXISTS active_sessions (
+    jti         TEXT PRIMARY KEY,
+    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    username    VARCHAR(100),
+    ip_address  VARCHAR(45),
+    user_agent  TEXT,
+    issued_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_active_sessions_user ON active_sessions(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_detections_detected_at    ON detections(detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_detections_risk_level     ON detections(risk_level);
 CREATE INDEX IF NOT EXISTS idx_detections_shadow_it_type ON detections(shadow_it_type);
