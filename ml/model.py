@@ -15,6 +15,7 @@ import joblib
 from ml.load_cicids import FEATURE_COLS, load_all, train_mask
 from ml.preprocess  import preprocess, save_scaler, load_scaler
 from ml.oui         import vendor_from_mac
+from ml.ipinfo      import describe_destination
 
 ARTIFACTS      = os.path.join(os.path.dirname(__file__), "artifacts")
 MODEL_PATH     = os.path.join(ARTIFACTS, "isolation_forest.pkl")
@@ -263,10 +264,11 @@ def detect(records):
     if rf is not None:
         flagged |= rf.predict(X) == 1
 
-    allowlist  = load_allowlist()
-    catalog    = load_saas_catalog()
-    suppressed = 0
-    saas_hits  = 0
+    allowlist       = load_allowlist()
+    catalog         = load_saas_catalog()
+    suppressed      = 0
+    saas_hits       = 0
+    infra_suppressed = 0
 
     results = []
     for i in range(len(df_clean)):
@@ -277,7 +279,6 @@ def detect(records):
         # records have no "sni" and fall back to the raw destination IP.
         sni  = row.get("sni")
         host = sni if isinstance(sni, str) and sni else None
-        dst  = host or str(row.get("Destination IP", "Unknown"))
 
         # Sanctioned services are authorised IT, not Shadow IT — always suppress
         # (named destinations only; a raw IP can't be verified as sanctioned).
@@ -298,6 +299,15 @@ def detect(records):
             category = app["category"]
             source   = "catalog"
         elif flagged[i]:
+            # Named host → use it; otherwise enrich the raw destination IP
+            # (label special ranges / reverse-DNS) or drop pure network noise.
+            if host:
+                dst = host
+            else:
+                dst = describe_destination(str(row.get("Destination IP", "Unknown")))
+                if dst is None:          # multicast / broadcast / link-local
+                    infra_suppressed += 1
+                    continue
             stype = row.get("shadow_it_type") or _infer_type(row)
             if stype == "none":
                 stype = _infer_type(row)
@@ -326,8 +336,9 @@ def detect(records):
 
     elapsed = time.time() - t0
     notes = []
-    if saas_hits:  notes.append(f"{saas_hits} unsanctioned SaaS")
-    if suppressed: notes.append(f"{suppressed} sanctioned suppressed")
+    if saas_hits:        notes.append(f"{saas_hits} unsanctioned SaaS")
+    if suppressed:       notes.append(f"{suppressed} sanctioned suppressed")
+    if infra_suppressed: notes.append(f"{infra_suppressed} infra noise suppressed")
     note = f" ({', '.join(notes)})" if notes else ""
     print(f"detect(): {len(results)} detections / {len(df_clean)} records in {elapsed:.3f}s{note}")
     return results, elapsed
