@@ -1,0 +1,20 @@
+# Sanctioned Services Allowlist — DEMO (virtual bank network)
+# ------------------------------------------------------------------
+# The BANK's authorised apps only. During the demo the operator copies this
+# over ml/sanctioned_services.txt on the detection PC so these read as
+# authorised IT (suppressed) while everything else (Dropbox, ChatGPT,
+# TeamViewer, ngrok, ...) correctly reads as UNSANCTIONED Shadow IT.
+#
+# IMPORTANT: this deliberately OMITS dropbox.com — the committed
+# ml/sanctioned_services.txt lists it, which would suppress the Dropbox demo.
+# Back up the real file first and restore it after the demo (see ../README.md).
+#
+# Matching: exact host or subdomain (portal.demo-bank.test matches under
+# demo-bank.test). Only flows with an extracted hostname (TLS SNI / HTTP Host /
+# passive DNS) are suppressed — raw-IP destinations never match.
+# ------------------------------------------------------------------
+
+demo-bank.test              # the bank's core + online banking (all subdomains)
+login.microsoftonline.com   # Microsoft 365 sign-in (sanctioned productivity)
+outlook.office365.com       # official corporate mail
+sharepoint.com              # sanctioned document store

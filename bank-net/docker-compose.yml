@@ -1,0 +1,87 @@
+# Virtual Bank Network — the CONTAINER tier of the single-machine testbed.
+#
+# These are the bulk traffic-generating "bank hosts". They run inside the
+# Ubuntu Server VM (the Docker host) on the banking device; the two rich
+# endpoints (support-ws, employee-ws) are REAL Windows VMs, not containers —
+# see ../bank-net/vms/README.md.
+#
+#   cd bank-net
+#   cp .env.example .env      # then edit PARENT_NIC / SUBNET / GATEWAY / IPs
+#   docker compose up -d --build
+#   docker compose logs -f    # watch each role's behaviour
+#   docker compose down       # teardown
+#
+# WHY macvlan: the default bridge NATs every container behind the host IP, so on
+# the wire they'd collapse into ONE device — killing the per-device / rogue-device
+# story. macvlan gives each container its own MAC + IP on the LAN, so the detector
+# (sniffing the host NIC in promiscuous mode) sees each as a distinct device.
+#
+# PARENT_NIC is the Ubuntu VM's BRIDGED vNIC (e.g. ens33). For macvlan to expose
+# each container's MAC, that vNIC's VMware port must ALLOW promiscuous mode + MAC
+# changes (see ../bank-net/vms/README.md). Container IPs sit inside the LAN /24
+# but OUTSIDE the router's DHCP pool.
+
+services:
+  teller-01:
+    build: .
+    image: bank-net-traffic:latest      # built once, reused by every role
+    restart: unless-stopped
+    environment:
+      ROLE: teller
+    networks:
+      banknet:
+        ipv4_address: ${IP_TELLER_01}
+
+  teller-02:
+    image: bank-net-traffic:latest
+    depends_on: [teller-01]              # ensures the image is built first
+    restart: unless-stopped
+    environment:
+      ROLE: teller
+    networks:
+      banknet:
+        ipv4_address: ${IP_TELLER_02}
+
+  # NOTE: the `employee` and `support` roles are NOT containers in this hybrid —
+  # they are the real Windows VMs employee-ws / support-ws (real Dropbox /
+  # ChatGPT / TeamViewer / AnyDesk). See ../bank-net/vms/README.md. The
+  # `employee` and `support` profiles remain in generator/profiles.py so the VMs
+  # (or a container, if you ever want a lightweight stand-in) can reuse them.
+
+  # Rogue Raspberry Pi: the spoofed b8:27:eb:* MAC is a Raspberry-Pi OUI, so
+  # ml/oui.py labels it "Raspberry Pi Foundation" — an unauthorised device in
+  # Devices / Network Discovery.
+  rogue-pi:
+    image: bank-net-traffic:latest
+    depends_on: [teller-01]
+    restart: unless-stopped
+    mac_address: "b8:27:eb:12:34:56"
+    environment:
+      ROLE: rogue
+    networks:
+      banknet:
+        ipv4_address: ${IP_ROGUE_PI}
+
+  # Data exfiltration: bulk upload (anomaly path) + crypto beacon (catalog hit).
+  exfil-01:
+    image: bank-net-traffic:latest
+    depends_on: [teller-01]
+    restart: unless-stopped
+    environment:
+      ROLE: exfil
+      EXFIL_SINK: ${EXFIL_SINK:-https://transfer.sh}
+      EXFIL_MB: ${EXFIL_MB:-8}
+    networks:
+      banknet:
+        ipv4_address: ${IP_EXFIL_01}
+
+networks:
+  banknet:
+    driver: macvlan
+    driver_opts:
+      parent: ${PARENT_NIC}             # e.g. eth0 — the bank device's LAN NIC
+    ipam:
+      config:
+        - subnet: ${SUBNET}             # the router's subnet, e.g. 192.168.1.0/24
+          gateway: ${GATEWAY}           # the router, e.g. 192.168.1.1
+          ip_range: ${IP_RANGE}         # a slice OUTSIDE the DHCP pool
