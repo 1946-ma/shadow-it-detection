@@ -164,7 +164,8 @@ shadow-it-detection/
 │       ├── metrics.py          # /api/metrics (reads ml/reports/)
 │       ├── scan.py             # /api/scan/* (live packet capture)
 │       ├── report.py           # /api/report/generate (PDF download)
-│       └── wazuh.py            # /api/wazuh/status + /api/wazuh/sync (Syscollector ingest)
+│       ├── wazuh.py            # /api/wazuh/status + /api/wazuh/sync (Syscollector ingest)
+│       └── radius.py           # /api/radius/status + /api/radius/sync (RADIUS accounting ingest)
 ├── ml/
 │   ├── model.py                # IsolationForest train + detect + classify_risk
 │   ├── preprocess.py           # Feature cleaning, MinMaxScaler
@@ -173,6 +174,7 @@ shadow-it-detection/
 │   ├── evaluate.py             # Accuracy/precision/recall/F1 + 6 scenario tests
 │   ├── collector.py            # Live Scapy packet capture → flow features → detect
 │   ├── wazuh.py                # Wazuh manager REST client — Syscollector software-inventory ingest
+│   ├── radius.py               # FreeRADIUS accounting (radacct) query — concurrent-session ingest
 │   ├── artifacts/              # isolation_forest.pkl, scaler.pkl (gitignored)
 │   └── reports/                # metrics_summary.csv, scenario_results.csv
 ├── db/
@@ -264,6 +266,8 @@ Protected routes accept the auth token via an **HttpOnly cookie** (browser, set 
 | GET | `/api/report/generate` | Admin | PDF binary download |
 | GET | `/api/wazuh/status` | Admin | Passive Wazuh connectivity check — `{ connected, agents: [{id,name,ip,status}] }`, no DB writes |
 | POST | `/api/wazuh/sync` | Admin | Pulls Syscollector software inventory from every connected agent, saves unsanctioned-catalog matches (`detection_source='wazuh'`) |
+| GET | `/api/radius/status` | Admin | Passive RADIUS accounting check — `{ connected, open_sessions, identities }`, no DB writes |
+| POST | `/api/radius/sync` | Admin | Flags identities with 2+ open RADIUS sessions from different NAS IPs (`detection_source='radius'`) |
 
 ---
 
@@ -393,6 +397,76 @@ remain concurrent-session detection and the AI Assistant.
 
 ---
 
+## RADIUS/AAA Concurrent-Session Integration (added 2026-07-27)
+Roadmap feature #4 — the last item (`Shadow-IT-Pipeline-Flowchart.png`,
+"RADIUS/AAA — 'Regae?' INTEGRATE"). FreeRADIUS's **Simultaneous-Use** check
+enforces concurrent-login limits at the network-auth layer (Wi-Fi/VPN/802.1X),
+and its **accounting** feed is a second, independent source for the same
+identity-Shadow-IT signal the app-layer concurrent-session feature already
+provides (`backend/routes/auth.py._check_and_enforce_concurrency`) — sourced
+from network logins instead of dashboard JWT sessions.
+
+- **Deployment.** `freeradius/freeradius-server:latest` (3.2.10) on the
+  bank-net docker-host Ubuntu VM, **attached to the `bank-net_banknet` macvlan
+  network** (`192.168.137.43`), not a plain bridge/published-port container —
+  a bridge container's ports are **unreachable from the macvlan bank-net
+  containers** (a known Docker limitation: macvlan-to-docker-host doesn't
+  route back to the host's own published ports). Config is a locally-edited
+  copy of the image's default `/etc/freeradius` (`docker cp`'d out, edited,
+  bind-mounted back in) rather than raw env vars — FreeRADIUS's config
+  surface is too broad for env-var overrides alone.
+- **Accounting writes directly into the existing PostgreSQL** (`shadow_it_db`)
+  — not a REST API like Wazuh. FreeRADIUS's own `mods-available/sql` module
+  (`dialect=postgresql`, `radius_db="host=192.168.137.1 port=5432 dbname=shadow_it_db user=freeradius_app password=..."`)
+  writes straight into the standard FreeRADIUS schema (`radacct`, `radcheck`,
+  `radreply`, `nas`, ...), applied to `shadow_it_db` as **new tables only**.
+  A restricted `freeradius_app` Postgres role (own login, `GRANT` scoped to
+  just those tables) plus a `pg_hba.conf` rule scoped to the
+  `192.168.137.0/24` subnet and a matching Windows Firewall rule (inbound
+  5432, same subnet only) — same least-privilege pattern as `shadow_it_app`.
+  `shadow_it_app` itself gets a plain `GRANT SELECT ON radacct` so the backend
+  can read it.
+- **Config gotchas that actually bite** (all fixed in the committed config):
+  config files copied out via `docker cp` land owned by the host user, not
+  the container's `freerad` user — `chmod -R o+rX` the whole tree or every
+  module load fails on a permission error (hit this on `certs/server.pem` and
+  `mods-config/preprocess/huntgroups`). The default site references the `eap`
+  module in **four places** (`authorize{}`, `authenticate{}`, `post-auth{}`,
+  plus the whole `inner-tunnel` virtual server) — removing the `eap` module
+  (not needed for simple PAP auth) means all four must be commented out too,
+  or the config fails to parse. The `session{}` block's `sql` line (for
+  Simultaneous-Use) is commented out by default and must be enabled.
+- **`ml/radius.py`** — `get_concurrent_sessions()` / `scan_concurrent_sessions()`,
+  a plain SQL query (`GROUP BY username HAVING COUNT(DISTINCT nasipaddress) > 1
+  WHERE acctstoptime IS NULL`) — no REST client needed since accounting is
+  already in-database. Use `host(nasipaddress)` not `nasipaddress::text` or
+  every IP grows a spurious `/32` suffix. Detection shape matches the
+  app-layer feature exactly (`shadow_it_type='identity'`, `risk_level='high'`,
+  `app_category='identity'`, `device_type='user-account'`), with
+  `detection_source='radius'`.
+- **API** — `backend/routes/radius.py`, admin-only: `GET /api/radius/status`
+  (open-session + identity counts, no writes) and `POST /api/radius/sync`
+  (audit-logged as `RADIUS_SYNC`).
+- **Frontend** — "RADIUS/AAA Concurrent Sessions" card on `live-scan/page.tsx`,
+  same status-pill-on-load + sync-button pattern as the Wazuh card.
+  `detection_source: 'radius'` added to `lib/types.ts` and the Alerts page.
+- **Demo simulation** (no real 802.1X/Wi-Fi hardware in this testbed):
+  `freeradius-utils` (`radclient`) installed directly into the `teller-01`/
+  `teller-02` bank-net containers (Debian-based, plain `apt-get install`).
+  A test identity (`demo_employee`, `radcheck` `Cleartext-Password` +
+  `Simultaneous-Use=1`) logging in from `teller-02` while already
+  "logged in" from `teller-01` gets a **genuine FreeRADIUS
+  `Access-Reject — "You are already logged in - access denied"`** — the
+  real-time enforcement working exactly as designed. A separate
+  `Accounting-Start` sent from `teller-02` regardless (modelling a NAS that
+  doesn't enforce the check, or out-of-order accounting) is what the
+  audit-trail sync in `ml/radius.py` actually catches.
+- **Verified:** `demo_employee` shows as logged in from `192.168.137.41` AND
+  `.42` simultaneously in `radacct`; sync produces one high-risk `identity`
+  detection, confirmed via `/api/detections?...` and the audit log.
+
+---
+
 ## Frontend Design System
 
 **History:** the original CRA frontend (plain CSS, "no glow/no animation") was first reskinned with Tailwind/glassmorphism while staying on CRA. On 2026-07-01 the user replaced the frontend entirely with a downloaded Next.js/TypeScript app whose visual language they preferred — that app's dashboard pages were almost all mock data, so every page was rewired to the real Flask API described above. The framework is now Next.js 14 (App Router) + TypeScript, not CRA.
@@ -461,7 +535,9 @@ Working tree clean as of 2026-07-05. Detections table was cleared and repopulate
 ---
 
 ## What's Left / Possible Next Steps
-- Roadmap (`Shadow-IT-Pipeline-Flowchart.png`): concurrent-session detection ✓, AI Assistant ✓, Wazuh software-inventory ingest ✓ (2026-07-27) — **RADIUS/AAA accounting feed ("Regae?") is the last item**
+- Roadmap (`Shadow-IT-Pipeline-Flowchart.png`) — **all four items complete**: concurrent-session detection ✓, AI Assistant ✓, Wazuh software-inventory ingest ✓, RADIUS/AAA accounting feed ✓ (both 2026-07-27)
+- Full bank-net demo rehearsal (Live Scan + Wazuh sync + RADIUS sync run together, cross-checked against `bank-net/EXPECTED.md`) done 2026-07-27 — every device/behaviour row matched; see the git history around that date for details
+- Recurring gotcha: both Windows VMs (`support-ws`, `employee-ws`) have spontaneously powered off unprompted several times during long sessions — check their power/sleep settings and Windows Update schedule before a live demo
 - Push commits to the GitHub remote
 - Final testing of all features end-to-end in the browser (incl. new Reports page sections; restart Flask to pick up metrics.py changes)
 - Optional dissertation experiment: leave-one-attack-out (retrain RF without e.g. DDoS labels, show the IF gate still catches it) to evidence the novel-threat claim
