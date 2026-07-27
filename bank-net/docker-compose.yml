@@ -26,6 +26,8 @@ services:
     build: .
     image: bank-net-traffic:latest      # built once, reused by every role
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       ROLE: teller
     networks:
@@ -36,6 +38,8 @@ services:
     image: bank-net-traffic:latest
     depends_on: [teller-01]              # ensures the image is built first
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       ROLE: teller
     networks:
@@ -55,6 +59,8 @@ services:
     image: bank-net-traffic:latest
     depends_on: [teller-01]
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     mac_address: "b8:27:eb:12:34:56"
     environment:
       ROLE: rogue
@@ -67,6 +73,8 @@ services:
     image: bank-net-traffic:latest
     depends_on: [teller-01]
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       ROLE: exfil
       EXFIL_SINK: ${EXFIL_SINK:-https://transfer.sh}
