@@ -1,14 +1,14 @@
 'use client'
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import GlassCard from '@/components/ui/GlassCard'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { StatusIcon } from '@/components/ui/StatusIcon'
 import {
-    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2,
+    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2, ShieldAlert,
 } from 'lucide-react'
-import { detectionsApi, statsApi } from '@/lib/api'
+import { detectionsApi, statsApi, firewallApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { Detection, DashboardSummary } from '@/lib/types'
 
@@ -43,6 +43,7 @@ const PAGE_SIZE = 20
 
 function AlertsPageInner() {
     const searchParams = useSearchParams()
+    const router = useRouter()
     const admin = isAdmin()
 
     const [detections, setDetections] = useState<Detection[]>([])
@@ -56,6 +57,9 @@ function AlertsPageInner() {
     const [resolving, setResolving] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [summary, setSummary] = useState<DashboardSummary | null>(null)
+    const [suggesting, setSuggesting] = useState(false)
+    const [suggestError, setSuggestError] = useState('')
+    const [suggestInfo, setSuggestInfo] = useState('')
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -77,6 +81,7 @@ function AlertsPageInner() {
     useEffect(() => { load() }, [load])
     useEffect(() => { statsApi.get().then((r) => setSummary(r.data)).catch(() => {}) }, [])
     useEffect(() => { setPage(1) }, [typeFilter, riskFilter, sourceFilter])
+    useEffect(() => { setSuggestError(''); setSuggestInfo('') }, [selected])
 
     const markResolved = useCallback(async (id: number) => {
         setResolving(true)
@@ -90,6 +95,18 @@ function AlertsPageInner() {
             setResolving(false)
         }
     }, [])
+
+    const handleSuggestRule = async (id: number) => {
+        setSuggesting(true); setSuggestError(''); setSuggestInfo('')
+        try {
+            const res = await firewallApi.generate(id)
+            setSuggestInfo(`Suggested rule created for ${res.data.target_label || res.data.target_ip} — review it on the Firewall Rules page.`)
+        } catch (err) {
+            setSuggestError(apiErrorMessage(err, 'Could not generate a rule suggestion'))
+        } finally {
+            setSuggesting(false)
+        }
+    }
 
     const handleExport = async () => {
         setExporting(true)
@@ -324,6 +341,22 @@ function AlertsPageInner() {
                                         className="w-full mt-6 py-2.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all font-medium text-sm disabled:opacity-50">
                                         {resolving ? 'Resolving…' : 'Mark as Resolved'}
                                     </motion.button>
+                                )}
+
+                                {admin && (
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={suggesting}
+                                        onClick={() => handleSuggestRule(selected.id)}
+                                        className="w-full mt-3 py-2.5 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 border border-red-500/30 transition-all font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {suggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+                                        {suggesting ? 'Generating…' : 'Suggest Firewall Rule'}
+                                    </motion.button>
+                                )}
+                                {suggestError && <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-xs text-red-400">{suggestError}</div>}
+                                {suggestInfo && (
+                                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-500">
+                                        {suggestInfo}{' '}
+                                        <button onClick={() => router.push('/dashboard/firewall-rules')} className="underline font-medium">View →</button>
+                                    </div>
                                 )}
                             </div>
                         </motion.div>

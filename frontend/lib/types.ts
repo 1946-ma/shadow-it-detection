@@ -150,6 +150,35 @@ export interface DiscoverResponse {
     subnet: string
 }
 
+export type EnforcementKind = 'linux-ufw-host' | 'windows-vm' | 'macvlan-container' | 'unknown'
+export type RuleAction = 'block-egress' | 'quarantine'
+export type FirewallRuleStatus = 'pending' | 'rejected' | 'applied' | 'apply_failed'
+
+export interface FirewallRule {
+    id: number
+    detection_id: number | null
+    target_ip: string
+    target_label: string | null
+    enforcement_kind: EnforcementKind
+    rule_action: RuleAction
+    dst_domain: string | null
+    rationale: string
+    command_text: string
+    status: FirewallRuleStatus
+    execution_output: string | null
+    suggested_by: number | null
+    reviewed_by: number | null
+    created_at: string
+    reviewed_at: string | null
+}
+
+export interface FirewallRuleListResponse {
+    rules: FirewallRule[]
+    total: number
+    page: number
+    per_page: number
+}
+
 export interface AssistantResponse {
     answer: string
     model: string

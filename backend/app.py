@@ -46,6 +46,7 @@ def create_app() -> Flask:
     from backend.routes.assistant  import assistant_bp
     from backend.routes.wazuh      import wazuh_bp
     from backend.routes.radius     import radius_bp
+    from backend.routes.firewall   import firewall_bp
 
     app.register_blueprint(auth_bp,       url_prefix="/api/auth")
     app.register_blueprint(detections_bp, url_prefix="/api/detections")
@@ -57,6 +58,7 @@ def create_app() -> Flask:
     app.register_blueprint(assistant_bp,  url_prefix="/api/assistant")
     app.register_blueprint(wazuh_bp,      url_prefix="/api/wazuh")
     app.register_blueprint(radius_bp,     url_prefix="/api/radius")
+    app.register_blueprint(firewall_bp,   url_prefix="/api/firewall")
 
     # ── POST /api/run-detection  (admin only) ──────────────────────────────────
     from backend.middleware.jwt_auth import token_required

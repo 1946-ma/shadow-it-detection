@@ -104,4 +104,15 @@ export const radiusApi = {
     sync: () => api.post('/api/radius/sync', {}, { timeout: 15000 }),
 }
 
+export const firewallApi = {
+    // Generates a draft rule from a detection — never executes anything.
+    generate: (detectionId: number) =>
+        api.post('/api/firewall/rules/generate', { detection_id: detectionId }),
+    list: (params?: Record<string, unknown>) => api.get('/api/firewall/rules', { params }),
+    // Approving actually runs the command against the real target (SSH /
+    // vmrun) — vmrun in particular can take up to ~45s, so a long timeout.
+    review: (id: number, status: 'approved' | 'rejected') =>
+        api.patch(`/api/firewall/rules/${id}`, { status }, { timeout: 60000 }),
+}
+
 export default api

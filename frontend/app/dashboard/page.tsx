@@ -6,9 +6,9 @@ import Link from 'next/link'
 import {
     Sparkles, Play, Download, Loader2, ArrowUpRight, ShieldAlert,
     Smartphone, BarChart3, Wifi, AlertCircle, Monitor, Package,
-    FileText, Code2, Cpu, ChevronDown,
+    FileText, Code2, Cpu, ChevronDown, Ban,
 } from 'lucide-react'
-import { statsApi, detectionsApi, reportApi, apiErrorMessage } from '@/lib/api'
+import { statsApi, detectionsApi, reportApi, firewallApi, apiErrorMessage } from '@/lib/api'
 import { fetchAllDetections, groupByApplication } from '@/lib/aggregate'
 import { isAdmin } from '@/lib/auth'
 import type { DashboardSummary, TimelinePoint, TopOffender } from '@/lib/types'
@@ -41,6 +41,8 @@ export default function DashboardPage() {
     const [running, setRunning]   = useState(false)
     const [exporting, setExporting] = useState(false)
     const [actionMsg, setActionMsg] = useState('')
+    const [blockingId, setBlockingId] = useState<number | null>(null)
+    const [blockResult, setBlockResult] = useState<{ id: number; ok: boolean; message: string } | null>(null)
 
     const fetchData = useCallback(async () => {
         try {
@@ -78,6 +80,27 @@ export default function DashboardPage() {
         } catch (err) {
             setActionMsg(apiErrorMessage(err, 'Run detection failed'))
         } finally { setRunning(false) }
+    }
+
+    const handleQuickBlock = async (detectionId: number) => {
+        setBlockingId(detectionId); setBlockResult(null)
+        try {
+            const gen = await firewallApi.generate(detectionId)
+            const ruleId = gen.data.id
+            const reviewed = await firewallApi.review(ruleId, 'approved')
+            const target = reviewed.data.target_label || reviewed.data.target_ip
+            setBlockResult({
+                id: detectionId,
+                ok: reviewed.data.status === 'applied',
+                message: reviewed.data.status === 'applied'
+                    ? `Blocked ${target} — ${reviewed.data.command_text}`
+                    : `Could not apply automatically (${target}) — review it on the Firewall Rules page.`,
+            })
+        } catch (err) {
+            setBlockResult({ id: detectionId, ok: false, message: apiErrorMessage(err, 'Block failed') })
+        } finally {
+            setBlockingId(null)
+        }
     }
 
     const handleExportReport = async () => {
@@ -207,6 +230,13 @@ export default function DashboardPage() {
                         View all <ArrowUpRight className="w-3 h-3" />
                     </Link>
                 </div>
+                {blockResult && (
+                    <div className="mb-4 rounded-xl px-4 py-3 text-xs font-medium"
+                        style={{ background: blockResult.ok ? '#e2efef' : '#eef1f0', color: blockResult.ok ? WK.indigo : WK.coral }}>
+                        {blockResult.message}{' '}
+                        <Link href="/dashboard/firewall-rules" className="underline">View details →</Link>
+                    </div>
+                )}
                 {summary.recent_alerts.length === 0 ? (
                     <p className="text-center py-10 text-sm" style={{ color: WK.muted }}>No recent alerts</p>
                 ) : (
@@ -214,24 +244,33 @@ export default function DashboardPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-left" style={{ color: WK.muted }}>
-                                    {['Timestamp', 'Source IP', 'Destination', 'Type', 'Risk', 'Status'].map(h => (
+                                    {['Timestamp', 'Source IP', 'Destination', 'Type', 'Risk', 'Status', ...(admin ? ['Action'] : [])].map(h => (
                                         <th key={h} className="pb-3 pr-4 text-xs font-semibold uppercase tracking-wide">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {summary.recent_alerts.map(d => (
-                                    <tr key={d.id} onClick={() => router.push('/dashboard/alerts')}
-                                        className="cursor-pointer" style={{ borderTop: `1px solid ${WK.line}` }}>
-                                        <td className="py-3 pr-4 text-xs" style={{ color: WK.muted }}>{fmtTs(d.detected_at)}</td>
-                                        <td className="py-3 pr-4 text-xs font-mono" style={{ color: WK.ink }}>{d.src_ip}</td>
-                                        <td className="py-3 pr-4 text-xs" style={{ color: WK.ink }}>{d.dst_domain || '—'}</td>
-                                        <td className="py-3 pr-4"><Pill text={d.shadow_it_type || 'unknown'} bg="#e2efef" fg={WK.indigo} /></td>
-                                        <td className="py-3 pr-4"><RiskPill risk={d.risk_level} /></td>
-                                        <td className="py-3 pr-4">
+                                    <tr key={d.id} style={{ borderTop: `1px solid ${WK.line}` }}>
+                                        <td className="py-3 pr-4 text-xs cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.muted }}>{fmtTs(d.detected_at)}</td>
+                                        <td className="py-3 pr-4 text-xs font-mono cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.ink }}>{d.src_ip}</td>
+                                        <td className="py-3 pr-4 text-xs cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.ink }}>{d.dst_domain || '—'}</td>
+                                        <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}><Pill text={d.shadow_it_type || 'unknown'} bg="#e2efef" fg={WK.indigo} /></td>
+                                        <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}><RiskPill risk={d.risk_level} /></td>
+                                        <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}>
                                             <Pill text={d.is_resolved ? 'resolved' : 'open'}
                                                 bg={d.is_resolved ? '#eef1f0' : '#eef1f0'} fg={d.is_resolved ? WK.muted : WK.coral} />
                                         </td>
+                                        {admin && (
+                                            <td className="py-3 pr-4">
+                                                <button onClick={() => handleQuickBlock(d.id)} disabled={blockingId === d.id}
+                                                    className="flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 disabled:opacity-50"
+                                                    style={{ background: '#eef1f0', color: WK.coral }}>
+                                                    {blockingId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                                                    Block
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

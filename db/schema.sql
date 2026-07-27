@@ -61,6 +61,29 @@ CREATE TABLE IF NOT EXISTS active_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_active_sessions_user ON active_sessions(user_id);
 
+-- Auto-suggested firewall rules: a draft enforcement action generated from a
+-- detection (block-egress or quarantine), reviewed by an admin. Approval
+-- actually executes the command against the real target (ml/enforcement.py);
+-- rejection just dismisses it. Never auto-applied without a human approving.
+CREATE TABLE IF NOT EXISTS firewall_rules (
+    id               SERIAL PRIMARY KEY,
+    detection_id     INTEGER REFERENCES detections(id) ON DELETE CASCADE,
+    target_ip        VARCHAR(45) NOT NULL,
+    target_label     VARCHAR(100),
+    enforcement_kind VARCHAR(20) NOT NULL,               -- linux-ufw-host | windows-vm | macvlan-container | unknown
+    rule_action      VARCHAR(20) NOT NULL,               -- block-egress | quarantine
+    dst_domain       VARCHAR(255),
+    rationale        TEXT NOT NULL,
+    command_text     TEXT NOT NULL,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending | rejected | applied | apply_failed
+    execution_output TEXT,
+    suggested_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at      TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_firewall_rules_status ON firewall_rules(status);
+
 CREATE INDEX IF NOT EXISTS idx_detections_detected_at    ON detections(detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_detections_risk_level     ON detections(risk_level);
 CREATE INDEX IF NOT EXISTS idx_detections_shadow_it_type ON detections(shadow_it_type);
