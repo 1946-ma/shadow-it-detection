@@ -111,6 +111,40 @@ then restart the backend.
 
 ---
 
+## Network Segmentation Policy (added 2026-07-27)
+
+Structural lockdown of the bank network's attack surface — deliberately scoped
+to **not** touch any outbound app traffic, since that traffic (Dropbox slips,
+exfil uploads, the crypto beacon, teller browsing) is exactly what the
+detector is meant to catch. Blocking it at the network layer would starve the
+demo of the very detections it exists to show. So enforcement here is
+inbound-only, structural (who can reach management/file-sharing ports), never
+app-layer.
+
+| Host | Rule | Why |
+|---|---|---|
+| `docker-host` (.40) | SSH (22) + Wazuh API (55000) reachable only from the banking-device host (.1). Wazuh agent ports (1514/1515) reachable only from `support-ws`/`employee-ws` | Only the detector should administer the manager or the Docker host |
+| `support-ws` (.244) | Inbound RDP (3389) / SMB (445) / NetBIOS (139) blocked from everyone except the banking-device host (.1) | No lateral movement from tellers/rogue-pi/exfil-01 into this endpoint |
+| `employee-ws` (.243) | Same as above | Same reasoning |
+| `teller-01/02`, `rogue-pi`, `exfil-01` | Unrestricted | Their traffic *is* the Shadow-IT signal — nothing here is blocked |
+
+**Enforcement mechanism, per host:**
+- `docker-host`: `ufw` (default-deny incoming, explicit allow rules per above). Note the containers' own macvlan traffic is invisible to this — see the gotcha below — so this only protects the VM's own listening ports, not container-to-container/external traffic.
+- `support-ws` / `employee-ws`: native Windows Firewall, driven remotely via `vmrun -gu <user> -gp <pass> runProgramInGuest` (VMware Tools guest-RPC — no WinRM/RDP needed). Each host got its own explicit **block** rule (all sources except the banking host) *plus* an explicit **allow** rule (banking host only) — Windows Firewall's default-inbound-block only kicks in once the firewall is actually turned on, and a bare "block everyone but X" rule is not enough by itself if the firewall was previously off (see gotcha below).
+
+**Gotchas hit building this (all resolved, worth knowing before touching it again):**
+1. **WinNAT can't be filtered by the banking-device host's own Windows Firewall.** Firewall rules there only apply to traffic terminating at the host's own stack — traffic merely routed/NAT'd from VMnet1 out to the internet sails through untouched. Verified empirically (added a block rule for a specific IP, raw TCP connect from a container still succeeded in 0.03s). This is why segmentation had to happen at each endpoint (`docker-host`, the two VMs) instead of centrally at the NAT gateway.
+2. **Docker macvlan traffic bypasses the docker-host's own netfilter entirely** — a deliberate Linux macvlan property (the container's virtual NIC hands packets straight to the physical/parent interface's driver without transiting the host namespace's own IP stack). `iptables`/`ufw` on `docker-host` cannot see or filter `teller-01/02`/`rogue-pi`/`exfil-01`'s own traffic at all — which conveniently is exactly what we want left alone anyway.
+3. **Windows Firewall was simply off** on both `support-ws` and `employee-ws` (common lab-VM default). Adding block rules against an inactive firewall is a no-op — always confirm with `netsh advfirewall set allprofiles state on` first, then re-verify functionally afterward (a `Test-NetConnection`/raw-socket check, not just re-reading the rule list back, since guest command output redirection over `vmrun` is unreliable — see next point).
+4. **Once the firewall is genuinely on, its default-inbound-block policy applies to everything**, so a "block all except X" rule alone will also block X unless there's *also* an explicit "allow X" rule — the default-allow you get with the firewall off disappears the moment you turn it on.
+5. **`vmrun runProgramInGuest` output can't be reliably captured.** Redirecting guest command output to a file and copying it back (`copyFileFromGuestToHost`) frequently timed out even for small outputs, especially through nested quoting (`cmd.exe /c "... \"...\" ..."` breaks easily — keep guest commands quote-free where possible, e.g. avoid spaces in firewall rule names). Functional testing (actually attempting the connection from an allowed/disallowed source) proved far more reliable than trying to read guest state back.
+6. **Every `runProgramInGuest` call without a session to attach to leaves a stray process behind** (we accumulated 11 idle `cmd.exe` windows on `support-ws` from repeated attempts) — clean these up with individual `killProcessInGuest` calls per PID; bulk-killing in a loop trips safety tooling that flags mass remote process termination.
+7. Both Windows VMs kept spontaneously powering off mid-session (see the pre-existing gotcha in `DEPLOYMENT-HANDOFF.md`) — re-verify `vmrun list` shows all three VMs before assuming any guest-side state persisted.
+
+This policy lives entirely in host/VM configuration (ufw rules, Windows Firewall rules) — **nothing here is in the git repo**, so it needs to be reapplied if `docker-host`/`support-ws`/`employee-ws` are rebuilt from scratch.
+
+---
+
 ## Teardown & restore
 
 ```bash
