@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Play, Square, RefreshCw, Radio, Wifi, Search, ShieldAlert, Server } from 'lucide-react'
+import { Play, Square, RefreshCw, Radio, Wifi, Search, ShieldAlert, Server, Package, Users } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import { StatusIcon } from '@/components/ui/StatusIcon'
-import { scanApi, apiErrorMessage } from '@/lib/api'
+import { scanApi, wazuhApi, radiusApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { ScanStatus, Detection, NetworkInterface, DiscoveredDevice, DiscoverResponse } from '@/lib/types'
 
@@ -62,6 +62,23 @@ export default function LiveScanPage() {
     const [discoverInfo, setDiscoverInfo] = useState('')
     const [devices, setDevices] = useState<DiscoveredDevice[]>([])
 
+    // Wazuh software-inventory sync (Syscollector — a software-presence signal,
+    // independent of network capture)
+    const [wazuhSyncing, setWazuhSyncing] = useState(false)
+    const [wazuhError, setWazuhError] = useState('')
+    const [wazuhInfo, setWazuhInfo] = useState('')
+    const [wazuhDetections, setWazuhDetections] = useState<Detection[]>([])
+    type WazuhAgent = { id: string; name: string; ip: string; status: string }
+    const [wazuhStatus, setWazuhStatus] = useState<{ connected: boolean; error: string | null; agents: WazuhAgent[] } | null>(null)
+
+    // RADIUS/AAA concurrent-session sync (FreeRADIUS accounting — a network-
+    // login identity signal, independent of app-layer JWT sessions)
+    const [radiusSyncing, setRadiusSyncing] = useState(false)
+    const [radiusError, setRadiusError] = useState('')
+    const [radiusInfo, setRadiusInfo] = useState('')
+    const [radiusDetections, setRadiusDetections] = useState<Detection[]>([])
+    const [radiusStatus, setRadiusStatus] = useState<{ connected: boolean; error: string | null; open_sessions: number; identities: number } | null>(null)
+
     const selectedIp = interfaces.find((i) => i.device === iface)?.ip || ''
     const subnet = selectedIp ? `${selectedIp.split('.').slice(0, 3).join('.')}.0/24` : ''
 
@@ -75,6 +92,12 @@ export default function LiveScanPage() {
             })
             .catch((e) => setIfaceErr(e.response?.data?.error || 'Could not list interfaces'))
         scanApi.status().then((r) => setStatus(r.data)).catch(() => {})
+        wazuhApi.status()
+            .then((r) => setWazuhStatus(r.data))
+            .catch((e) => setWazuhStatus({ connected: false, error: apiErrorMessage(e, 'Could not reach Wazuh manager'), agents: [] }))
+        radiusApi.status()
+            .then((r) => setRadiusStatus(r.data))
+            .catch((e) => setRadiusStatus({ connected: false, error: apiErrorMessage(e, 'Could not reach RADIUS accounting'), open_sessions: 0, identities: 0 }))
     }, [])
 
     const poll = useCallback(async () => {
@@ -144,6 +167,42 @@ export default function LiveScanPage() {
         } catch (e) {
             setDiscoverError(apiErrorMessage(e, 'Network scan failed'))
         } finally { setDiscovering(false) }
+    }
+
+    const handleWazuhSync = async () => {
+        setWazuhSyncing(true); setWazuhError(''); setWazuhInfo('')
+        try {
+            const r = await wazuhApi.sync()
+            setWazuhDetections(r.data.detections || [])
+            const s = (n: number) => (n === 1 ? '' : 's')
+            setWazuhInfo(
+                `${r.data.agents_scanned} agent${s(r.data.agents_scanned)} scanned · ` +
+                `${r.data.detections_saved} unsanctioned software detection${s(r.data.detections_saved)} saved`
+            )
+            if (r.data.errors?.length) setWazuhError(r.data.errors.join('; '))
+        } catch (e) {
+            setWazuhError(apiErrorMessage(e, 'Wazuh sync failed'))
+        } finally {
+            setWazuhSyncing(false)
+            wazuhApi.status().then((r) => setWazuhStatus(r.data)).catch(() => {})
+        }
+    }
+
+    const handleRadiusSync = async () => {
+        setRadiusSyncing(true); setRadiusError(''); setRadiusInfo('')
+        try {
+            const r = await radiusApi.sync()
+            setRadiusDetections(r.data.detections || [])
+            const n = r.data.detections_saved
+            setRadiusInfo(n === 0
+                ? 'No concurrent RADIUS sessions found — every identity is logged in from one location only.'
+                : `${n} concurrent-session detection${n === 1 ? '' : 's'} saved`)
+        } catch (e) {
+            setRadiusError(apiErrorMessage(e, 'RADIUS sync failed'))
+        } finally {
+            setRadiusSyncing(false)
+            radiusApi.status().then((r) => setRadiusStatus(r.data)).catch(() => {})
+        }
     }
 
     return (
@@ -279,6 +338,7 @@ export default function LiveScanPage() {
                                 <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
                                     <th className="text-left py-2 px-3">Device IP</th>
                                     <th className="text-left py-2 px-3">MAC</th>
+                                    <th className="text-left py-2 px-3">Device Type</th>
                                     <th className="text-left py-2 px-3">Open Services</th>
                                 </tr>
                             </thead>
@@ -289,6 +349,9 @@ export default function LiveScanPage() {
                                             <Server className="w-3.5 h-3.5 text-slate-400" /> {d.ip}
                                         </td>
                                         <td className="py-2.5 px-3 text-xs font-mono text-slate-500">{d.mac}</td>
+                                        <td className="py-2.5 px-3 text-xs text-slate-600 dark:text-slate-400">
+                                            {d.device_type || <span className="text-slate-400">unknown</span>}
+                                        </td>
                                         <td className="py-2.5 px-3">
                                             {d.services.length === 0 ? (
                                                 <span className="text-xs text-slate-400">no common ports open</span>
@@ -308,6 +371,159 @@ export default function LiveScanPage() {
                                         </td>
                                     </tr>
                                 ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </GlassCard>
+
+            {/* ── Wazuh software-inventory sync (Syscollector) ── */}
+            <GlassCard className="p-6">
+                <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            Wazuh Software Inventory
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-emerald-500/10 border border-emerald-500/25 text-emerald-500">SYSCOLLECTOR</span>
+                            {wazuhStatus == null ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/10 border border-slate-500/25 text-slate-400">checking…</span>
+                            ) : wazuhStatus.connected ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/25 text-emerald-500">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    {wazuhStatus.agents.filter((a) => a.status === 'active').length}/{wazuhStatus.agents.length} agents connected
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 border border-red-500/25 text-red-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> manager unreachable
+                                </span>
+                            )}
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                            Pulls installed-software inventory from every connected Wazuh agent and flags anything matching the unsanctioned SaaS catalog by app name (e.g. TeamViewer, AnyDesk, Dropbox) — a software-presence signal that doesn&apos;t depend on catching the app&apos;s traffic in a capture window.
+                        </p>
+                        {wazuhStatus && wazuhStatus.connected && wazuhStatus.agents.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {wazuhStatus.agents.map((a) => (
+                                    <span key={a.id} className={`px-2 py-0.5 rounded text-[11px] font-mono border ${a.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500' : 'bg-red-500/10 border-red-500/25 text-red-400'}`}>
+                                        {a.name} ({a.ip}) — {a.status}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        {wazuhStatus && !wazuhStatus.connected && wazuhStatus.error && (
+                            <p className="text-xs text-red-400 mt-2">{wazuhStatus.error}</p>
+                        )}
+                    </div>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={handleWazuhSync} disabled={wazuhSyncing}
+                        className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                        <RefreshCw className="w-4 h-4" /> {wazuhSyncing ? 'Syncing…' : 'Sync Inventory'}
+                    </motion.button>
+                </div>
+
+                {wazuhError && <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-sm text-red-400">{wazuhError}</div>}
+                {wazuhInfo && <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-sm text-emerald-500">{wazuhInfo}</div>}
+
+                {wazuhDetections.length > 0 && (
+                    <div className="overflow-x-auto mt-4">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-slate-200 dark:border-white/10">
+                                <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
+                                    <th className="text-left py-2 px-3">Agent</th>
+                                    <th className="text-left py-2 px-3">IP</th>
+                                    <th className="text-left py-2 px-3">Installed Software</th>
+                                    <th className="text-left py-2 px-3">Category</th>
+                                    <th className="text-left py-2 px-3">Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {wazuhDetections.map((d, i) => {
+                                    const rc = getRiskColor(d.risk_level)
+                                    return (
+                                        <tr key={i} className="border-b border-slate-100 dark:border-white/5">
+                                            <td className="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300">{d.device_type}</td>
+                                            <td className="py-2.5 px-3 text-xs font-mono text-slate-500">{d.src_ip}</td>
+                                            <td className="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300">{d.dst_domain}</td>
+                                            <td className="py-2.5 px-3 text-xs text-slate-500">{d.app_category || '—'}</td>
+                                            <td className="py-2.5 px-3">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${rc.bg} border ${rc.border}`}>
+                                                    <StatusIcon status={rc.status} size="sm" /> {d.risk_level?.toUpperCase()}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </GlassCard>
+
+            {/* ── RADIUS/AAA concurrent-session sync (FreeRADIUS accounting) ── */}
+            <GlassCard className="p-6">
+                <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Users className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                            RADIUS/AAA Concurrent Sessions
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-cyan-500/10 border border-cyan-500/25 text-cyan-500">FREERADIUS</span>
+                            {radiusStatus == null ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/10 border border-slate-500/25 text-slate-400">checking…</span>
+                            ) : radiusStatus.connected ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/25 text-emerald-500">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    {radiusStatus.open_sessions} open session{radiusStatus.open_sessions === 1 ? '' : 's'} · {radiusStatus.identities} identit{radiusStatus.identities === 1 ? 'y' : 'ies'}
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 border border-red-500/25 text-red-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> accounting table unreachable
+                                </span>
+                            )}
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                            Reads FreeRADIUS accounting (radacct) for identities logged in from more than one NAS location at once — the same concurrent-session concept as the app-layer feature, sourced from network-level RADIUS logins (Wi-Fi/VPN/802.1X) instead of dashboard sessions. FreeRADIUS&apos;s own Simultaneous-Use check already blocks this in real time; this is the audit-trail view.
+                        </p>
+                        {radiusStatus && !radiusStatus.connected && radiusStatus.error && (
+                            <p className="text-xs text-red-400 mt-2">{radiusStatus.error}</p>
+                        )}
+                    </div>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={handleRadiusSync} disabled={radiusSyncing}
+                        className="px-4 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-all text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                        <RefreshCw className="w-4 h-4" /> {radiusSyncing ? 'Syncing…' : 'Sync Sessions'}
+                    </motion.button>
+                </div>
+
+                {radiusError && <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-sm text-red-400">{radiusError}</div>}
+                {radiusInfo && <div className="mt-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-sm text-cyan-500">{radiusInfo}</div>}
+
+                {radiusDetections.length > 0 && (
+                    <div className="overflow-x-auto mt-4">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-slate-200 dark:border-white/10">
+                                <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
+                                    <th className="text-left py-2 px-3">Identity</th>
+                                    <th className="text-left py-2 px-3">First NAS IP</th>
+                                    <th className="text-left py-2 px-3">Detail</th>
+                                    <th className="text-left py-2 px-3">Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {radiusDetections.map((d, i) => {
+                                    const rc = getRiskColor(d.risk_level)
+                                    return (
+                                        <tr key={i} className="border-b border-slate-100 dark:border-white/5">
+                                            <td className="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300">{d.device_type}</td>
+                                            <td className="py-2.5 px-3 text-xs font-mono text-slate-500">{d.src_ip}</td>
+                                            <td className="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300">{d.dst_domain}</td>
+                                            <td className="py-2.5 px-3">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${rc.bg} border ${rc.border}`}>
+                                                    <StatusIcon status={rc.status} size="sm" /> {d.risk_level?.toUpperCase()}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -361,6 +577,7 @@ export default function LiveScanPage() {
                                     <tr className="text-xs text-slate-900 dark:text-slate-500 font-medium">
                                         <th className="text-left py-2 px-3">Time</th>
                                         <th className="text-left py-2 px-3">Source IP</th>
+                                        <th className="text-left py-2 px-3">Device Type</th>
                                         <th className="text-left py-2 px-3">Destination</th>
                                         <th className="text-left py-2 px-3">Protocol</th>
                                         <th className="text-left py-2 px-3">Type</th>
@@ -375,6 +592,7 @@ export default function LiveScanPage() {
                                             <tr key={i} className="border-b border-slate-100 dark:border-white/5">
                                                 <td className="py-2 px-3 text-xs text-slate-500">{fmtTime(d._ts)}</td>
                                                 <td className="py-2 px-3 text-xs font-mono text-slate-700 dark:text-slate-300">{d.src_ip}</td>
+                                                <td className="py-2 px-3 text-xs text-slate-600 dark:text-slate-400">{d.device_type && d.device_type !== 'unknown' ? d.device_type : <span className="text-slate-400">unknown</span>}</td>
                                                 <td className="py-2 px-3 text-xs text-slate-700 dark:text-slate-300 max-w-[160px] truncate">{d.dst_domain || '—'}</td>
                                                 <td className="py-2 px-3 text-xs text-slate-500">{d.protocol || '—'}</td>
                                                 <td className="py-2 px-3 text-xs"><span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400">{d.shadow_it_type || '—'}</span></td>

@@ -163,7 +163,8 @@ shadow-it-detection/
 │       ├── audit.py            # /api/audit-logs + /api/audit-logs/verify
 │       ├── metrics.py          # /api/metrics (reads ml/reports/)
 │       ├── scan.py             # /api/scan/* (live packet capture)
-│       └── report.py           # /api/report/generate (PDF download)
+│       ├── report.py           # /api/report/generate (PDF download)
+│       └── wazuh.py            # /api/wazuh/status + /api/wazuh/sync (Syscollector ingest)
 ├── ml/
 │   ├── model.py                # IsolationForest train + detect + classify_risk
 │   ├── preprocess.py           # Feature cleaning, MinMaxScaler
@@ -171,6 +172,7 @@ shadow-it-detection/
 │   ├── generate_dataset.py     # Synthetic training data generator
 │   ├── evaluate.py             # Accuracy/precision/recall/F1 + 6 scenario tests
 │   ├── collector.py            # Live Scapy packet capture → flow features → detect
+│   ├── wazuh.py                # Wazuh manager REST client — Syscollector software-inventory ingest
 │   ├── artifacts/              # isolation_forest.pkl, scaler.pkl (gitignored)
 │   └── reports/                # metrics_summary.csv, scenario_results.csv
 ├── db/
@@ -260,6 +262,8 @@ Protected routes accept the auth token via an **HttpOnly cookie** (browser, set 
 | GET | `/api/scan/detections` | Admin | Drains anomaly buffer + saves to DB |
 | POST | `/api/scan/flush` | Admin | Force-analyse all active flows immediately |
 | GET | `/api/report/generate` | Admin | PDF binary download |
+| GET | `/api/wazuh/status` | Admin | Passive Wazuh connectivity check — `{ connected, agents: [{id,name,ip,status}] }`, no DB writes |
+| POST | `/api/wazuh/sync` | Admin | Pulls Syscollector software inventory from every connected agent, saves unsanctioned-catalog matches (`detection_source='wazuh'`) |
 
 ---
 
@@ -335,6 +339,60 @@ Recalibrate these two constants in `ml/model.py` (`RISK_THRESHOLD_HIGH`/`RISK_TH
 
 ---
 
+## Wazuh Software-Inventory Integration (added 2026-07-27)
+Roadmap feature #3 (`Shadow-IT-Pipeline-Flowchart.png`, "Wazuh — INTEGRATE"). A
+second, independent detection source alongside the network-flow pipeline
+above: instead of catching an unsanctioned app by its *traffic*, Wazuh's
+Syscollector module reports what's *installed* on an endpoint, so an app is
+still flagged even if the detector's capture window never saw it phone home.
+Deliberately an **integration**, not a rebuild — Wazuh is an existing,
+mature tool used as a data source; the two actual custom contributions
+remain concurrent-session detection and the AI Assistant.
+
+- **Deployment — manager-only, no indexer/dashboard.** `docker run wazuh/wazuh-manager:4.9.2`
+  on the bank-net docker-host Ubuntu VM (`192.168.137.40`), publishing
+  **1514/tcp AND 1514/udp** (agent comms — Wazuh 4.9 agents default to TCP;
+  publishing UDP only silently leaves every agent `never_connected`), 1515/tcp
+  (enrollment), 55000/tcp (REST API). The indexer (OpenSearch) and dashboard
+  are skipped — the manager's own REST API already exposes Syscollector data
+  per-agent, which is all this integration needs. Default API creds
+  (`wazuh`/`wazuh`) are fine for this closed lab network; rotate before any
+  real exposure.
+- **Agents** — real Windows agent MSIs (`wazuh-agent-4.9.2-1.msi`) installed on
+  `support-ws` (192.168.137.244) and `employee-ws` (192.168.137.243), the same
+  two Windows VMs from `bank-net/vms/README.md`. Auto-enrollment (no
+  pre-shared password) against `WAZUH_MANAGER=192.168.137.40`.
+- **`ml/wazuh.py`** — `get_status()` (passive: authenticate + list agents,
+  no Syscollector pull, no DB writes) and `scan_installed_software()` (pulls
+  each active agent's package list, matches against `ml/saas_catalog.csv`
+  **by app name** via `load_saas_catalog()`, re-indexed name→domain). Matching
+  is **word-boundary regex**, not a bare substring — a naive `in` check
+  false-positived constantly (`"Xbox Game Bar"` ~ catalog entry `"Box"`,
+  `"Microsoft Store"` ~ catalog entry `"Tor"`). One detection per matched app
+  per agent (deduped via a per-scan `seen_apps` set), saved with
+  `detection_source='wazuh'`, `src_mac='Wazuh'`, `dst_domain="<App> (installed software)"`,
+  `anomaly_score=0.0` (score is meaningless for a presence signal — risk comes
+  straight from the catalog's `risk` column, same as a catalog network hit).
+- **API** — `backend/routes/wazuh.py`, admin-only: `GET /api/wazuh/status`
+  (connectivity + per-agent status, called on Live Scan page load) and
+  `POST /api/wazuh/sync` (full pull + `insert_detections()`, audit-logged as
+  `WAZUH_SYNC`).
+- **Frontend** — new "Wazuh Software Inventory" card on
+  `live-scan/page.tsx`: a persistent connected/agent-count pill (fetched via
+  `wazuhApi.status()` on mount, refreshed after every sync — without it the
+  card showed nothing until "Sync Inventory" was clicked, which read as
+  "Wazuh not connected"), a Sync button, and a results table.
+  `detection_source: 'wazuh'` added to `lib/types.ts` and the Alerts page's
+  source filter/badge map.
+- **New dependency:** `requests` (wasn't previously in `requirements.txt`).
+- **Config:** `WAZUH_API_URL` / `WAZUH_API_USER` / `WAZUH_API_PASSWORD` in
+  `.env` (defaults already point at the bank-net deployment above).
+- **Verified:** `support-ws` → TeamViewer + AnyDesk (high), `employee-ws` →
+  Dropbox (high) — matches the real installs from `bank-net/vms/README.md`
+  with zero false positives after the word-boundary fix.
+
+---
+
 ## Frontend Design System
 
 **History:** the original CRA frontend (plain CSS, "no glow/no animation") was first reskinned with Tailwind/glassmorphism while staying on CRA. On 2026-07-01 the user replaced the frontend entirely with a downloaded Next.js/TypeScript app whose visual language they preferred — that app's dashboard pages were almost all mock data, so every page was rewired to the real Flask API described above. The framework is now Next.js 14 (App Router) + TypeScript, not CRA.
@@ -403,6 +461,7 @@ Working tree clean as of 2026-07-05. Detections table was cleared and repopulate
 ---
 
 ## What's Left / Possible Next Steps
+- Roadmap (`Shadow-IT-Pipeline-Flowchart.png`): concurrent-session detection ✓, AI Assistant ✓, Wazuh software-inventory ingest ✓ (2026-07-27) — **RADIUS/AAA accounting feed ("Regae?") is the last item**
 - Push commits to the GitHub remote
 - Final testing of all features end-to-end in the browser (incl. new Reports page sections; restart Flask to pick up metrics.py changes)
 - Optional dissertation experiment: leave-one-attack-out (retrain RF without e.g. DDoS labels, show the IF gate still catches it) to evidence the novel-threat claim

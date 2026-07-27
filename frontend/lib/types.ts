@@ -26,7 +26,7 @@ export interface Detection {
     is_resolved: boolean
 }
 
-export type DetectionSource = 'catalog' | 'anomaly' | 'active-scan' | 'concurrent-session'
+export type DetectionSource = 'catalog' | 'anomaly' | 'active-scan' | 'concurrent-session' | 'wazuh' | 'radius'
 
 export interface AuditLog {
     id: number
@@ -138,6 +138,7 @@ export interface DiscoveredService {
 export interface DiscoveredDevice {
     ip: string
     mac: string
+    device_type: string | null
     services: DiscoveredService[]
 }
 

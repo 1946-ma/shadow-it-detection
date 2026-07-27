@@ -605,17 +605,26 @@ _RISKY_PORTS = {
 }
 
 
-def discover_devices(subnet: str, timeout: int = 2) -> list[dict]:
+def discover_devices(subnet: str, timeout: int = 2, iface: str = None) -> list[dict]:
     """ARP-sweep a subnet (e.g. '192.168.16.0/24'); return live [{ip, mac}].
     Layer-2 only — cannot cross a router, which is exactly the local segment
-    a Shadow IT audit is scoped to."""
+    a Shadow IT audit is scoped to.
+
+    `iface` should be the raw NPF device path of the adapter that actually
+    routes to `subnet`. On a multi-adapter Windows host (VMnet1/VMnet8/Wi-Fi/
+    Hyper-V, ...) Scapy's implicit interface auto-selection for srp() is
+    unreliable — the send can succeed on one adapter while replies are
+    listened for on another, silently yielding zero answers even though the
+    subnet is live. Passing iface explicitly pins both send and receive to
+    the correct adapter.
+    """
     if not SCAPY_AVAILABLE:
         raise RuntimeError("Scapy not available — cannot ARP sweep")
     from scapy.layers.l2 import ARP
     from scapy.sendrecv import srp
 
     pkt = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=str(subnet))
-    answered, _ = srp(pkt, timeout=timeout, verbose=False)
+    answered, _ = srp(pkt, timeout=timeout, verbose=False, iface=iface)
     seen: dict[str, str] = {}
     for _, reply in answered:
         seen[reply.psrc] = reply.hwsrc          # de-dupe by IP
@@ -649,7 +658,7 @@ def active_scan(iface_ip: str, prefix: int = 24, ports: dict = None, *,
                 authorized: bool = False, arp_timeout: int = 2,
                 connect_timeout: float = 0.5, max_workers: int = 64) -> list[dict]:
     """Full sweep of the local subnet: discover devices, then enumerate the
-    services each runs. Returns [{ip, mac, services:[{port, service}]}].
+    services each runs. Returns [{ip, mac, device_type, services:[{port, service}]}].
 
     `iface_ip` is any IPv4 on the target segment (e.g. this host's Wi-Fi IP —
     see list_interfaces()); the /prefix subnet is derived from it.
@@ -667,9 +676,11 @@ def active_scan(iface_ip: str, prefix: int = 24, ports: dict = None, *,
     if not SCAPY_AVAILABLE:
         raise RuntimeError("Scapy not available — cannot run active scan")
 
-    subnet  = ipaddress.ip_network(f"{iface_ip}/{prefix}", strict=False)
-    devices = discover_devices(str(subnet), timeout=arp_timeout)
-    by_ip   = {d["ip"]: {"ip": d["ip"], "mac": d["mac"], "services": []}
+    subnet = ipaddress.ip_network(f"{iface_ip}/{prefix}", strict=False)
+    iface  = next((i["device"] for i in list_interfaces() if i["ip"] == iface_ip), None)
+    devices = discover_devices(str(subnet), timeout=arp_timeout, iface=iface)
+    by_ip   = {d["ip"]: {"ip": d["ip"], "mac": d["mac"],
+                         "device_type": vendor_from_mac(d["mac"]), "services": []}
                for d in devices}
     ports   = ports or SERVICE_PORTS
 

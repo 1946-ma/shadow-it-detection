@@ -91,3 +91,27 @@ youtube.com,YouTube,streaming,low
 netflix.com,Netflix,streaming,low
 spotify.com,Spotify,streaming,low
 twitch.tv,Twitch,streaming,low
+# Shadow IT SaaS Catalog — DEMO ADDITIONS (virtual bank network)
+# ---------------------------------------------------------------------------
+# APPEND these rows to ml/saas_catalog.csv on the detection PC for the demo
+# (they are NOT already present). Everything else the bank roles contact —
+# Dropbox, WeTransfer, MEGA, ChatGPT, Claude, Gemini, TeamViewer, AnyDesk,
+# ngrok, Gmail, Telegram, Discord, ... — is already in the committed catalog.
+#
+# Appending (Linux/macOS):   cat saas_catalog.additions.csv >> ../../ml/saas_catalog.csv
+# Appending (PowerShell):    Get-Content saas_catalog.additions.csv | Add-Content ..\..\ml\saas_catalog.csv
+# Remove these lines after the demo to restore the committed catalog.
+#
+# Columns: domain,app_name,category,risk   (matches ml/saas_catalog.csv)
+# transfer.sh is the exfil bulk-upload sink. Adding it makes exfil-01 a
+# GUARANTEED catalog hit (real TLS SNI = transfer.sh) on top of its
+# model-dependent large-upload anomaly — so the exfil role always yields a
+# detection even if the anomaly model doesn't flag the byte volume.
+#
+# The crypto beacon host is a NON-resolvable .test name (no DNS answer, no SNI on
+# a raw TCP connect), so it is NOT a reliable catalog hit on its own — treat it
+# as best-effort. See ../EXPECTED.md for the caveat. Kept here so that IF you
+# point the beacon at a resolvable host (local DNS), the catalog can name it.
+# ---------------------------------------------------------------------------
+transfer.sh,Transfer.sh,file-sharing,high
+pool.example-mine.test,DemoPool,crypto-mining,high

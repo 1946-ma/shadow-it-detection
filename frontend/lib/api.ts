@@ -89,4 +89,19 @@ export const scanApi = {
         api.post('/api/scan/discover', { iface_ip, authorized }, { timeout: 180000 }),
 }
 
+export const wazuhApi = {
+    // Passive connectivity check — no Syscollector pull, no DB writes.
+    status: () => api.get('/api/wazuh/status'),
+    // Pulls installed-software inventory from every connected Wazuh agent and
+    // saves unsanctioned-catalog matches as detections (detection_source='wazuh').
+    sync: () => api.post('/api/wazuh/sync', {}, { timeout: 30000 }),
+}
+
+export const radiusApi = {
+    // Passive check — counts currently-open RADIUS sessions, no DB writes.
+    status: () => api.get('/api/radius/status'),
+    // Flags identities with 2+ open RADIUS sessions from different NAS IPs.
+    sync: () => api.post('/api/radius/sync', {}, { timeout: 15000 }),
+}
+
 export default api
