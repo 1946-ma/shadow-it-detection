@@ -29,6 +29,12 @@ export default function RootLayout({
                         __html: `document.documentElement.classList.remove('dark');`,
                     }}
                 />
+                {/* Apply the saved accent before paint (no flash). See frontend/lib/accent.ts. */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `try{var a=JSON.parse(localStorage.getItem('wk-accent'));if(a&&a.primary){var s=document.documentElement.style;s.setProperty('--accent-primary',a.primary);s.setProperty('--accent-glow',a.glow);s.setProperty('--accent-rgb',a.rgb);s.setProperty('--accent-tint',a.tint);}}catch(e){}`,
+                    }}
+                />
             </head>
             <body>
                 <Providers>

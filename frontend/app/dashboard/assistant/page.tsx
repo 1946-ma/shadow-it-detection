@@ -9,7 +9,7 @@ import { assistantApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { AssistantResponse } from '@/lib/types'
 
-const WK = { indigo: '#2a7477', ink: '#14201f', muted: '#7c8b89', line: '#e6e9e8' }
+const WK = { indigo: 'var(--accent-primary)', ink: '#14201f', muted: '#7c8b89', line: '#e6e9e8' }
 
 type Msg = { role: 'user' | 'assistant'; text: string; tools?: string[] }
 type Conversation = { id: string; title: string; messages: Msg[]; updatedAt: number }
@@ -148,7 +148,7 @@ export default function AssistantPage() {
                             return (
                                 <div key={c.id}
                                     className="group flex items-center gap-1 rounded-lg pr-1 cursor-pointer transition-colors"
-                                    style={{ background: isActive ? 'rgba(42,116,119,0.10)' : 'transparent' }}
+                                    style={{ background: isActive ? 'rgba(var(--accent-rgb),0.10)' : 'transparent' }}
                                     onClick={() => selectChat(c.id)}
                                     onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#fafbfb' }}
                                     onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}>
@@ -177,7 +177,7 @@ export default function AssistantPage() {
                     <div className="p-6 space-y-4 overflow-y-auto" style={{ minHeight: '46vh', maxHeight: '60vh' }}>
                         {messages.length === 0 && !loading && (
                             <div className="text-center py-8">
-                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'rgba(42,116,119,0.10)' }}>
+                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'rgba(var(--accent-rgb),0.10)' }}>
                                     <Sparkles className="w-7 h-7" style={{ color: WK.indigo }} />
                                 </div>
                                 <p className="text-sm mb-4" style={{ color: WK.muted }}>Ask a question, or try one of these:</p>
@@ -186,7 +186,7 @@ export default function AssistantPage() {
                                         <button key={ex} onClick={() => send(ex)}
                                             className="text-xs px-3 py-2 rounded-lg border transition-colors"
                                             style={{ borderColor: WK.line, color: WK.ink, background: '#fff' }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(42,116,119,0.06)' }}
+                                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.06)' }}
                                             onMouseLeave={(e) => { e.currentTarget.style.background = '#fff' }}>
                                             {ex}
                                         </button>

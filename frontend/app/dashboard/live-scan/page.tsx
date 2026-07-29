@@ -315,7 +315,7 @@ export default function LiveScanPage() {
                         {status.running ? <><Radio className="w-3.5 h-3.5 text-red-400" /> Live Stats</> : 'Last Session Stats'}
                     </h3>
                     <div className="flex gap-2.5 flex-wrap">
-                        <StatBox label="Packets Seen" value={status.packets_seen ?? 0} color="#2a7477" />
+                        <StatBox label="Packets Seen" value={status.packets_seen ?? 0} color="var(--accent-primary)" />
                         <StatBox label="Flows Analysed" value={status.flows_analysed ?? 0} color="#6b7a78" />
                         <StatBox label="Active Flows" value={status.active_flows ?? 0} color="#9aa7a5" />
                         <StatBox label="Anomalies Found" value={status.detections_found ?? detections.length} color="#1c2624" />

@@ -10,7 +10,7 @@ import { Package, AlertTriangle, Loader2 } from 'lucide-react'
 import { fetchAllDetections, groupByApplication, type ApplicationAggregate } from '@/lib/aggregate'
 
 const TYPE_COLORS: Record<string, string> = {
-    software: '#2a7477',
+    software: 'var(--accent-primary)',
     hardware: '#a855f7',
     mixed: '#9aa7a5',
 }

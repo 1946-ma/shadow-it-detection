@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { NetIcon } from '@/components/ui/NetIcon'
 
-const WK = { indigo: '#2a7477', ink: '#14201f', muted: '#6b7089', line: '#e6e9e8', hover: '#f2f3fb' }
+const WK = { indigo: 'var(--accent-primary)', ink: '#14201f', muted: '#6b7089', line: '#e6e9e8', hover: '#f2f3fb' }
 
 const navItems = [
     { href: '/dashboard',              label: 'Overview',     icon: LayoutDashboard },
@@ -92,7 +92,7 @@ function RailContent({ expanded, onClose }: { expanded: boolean; onClose?: () =>
                     <Link href="/dashboard/profile" onClick={onClose} title={expanded ? undefined : username}
                         className={`flex items-center rounded-xl mt-1 ${expanded ? 'gap-3 px-2 py-2' : 'justify-center'}`}>
                         <span className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                            style={{ background: `linear-gradient(135deg, ${WK.indigo}, #4a9ea1)` }}>{initials}</span>
+                            style={{ background: `linear-gradient(135deg, ${WK.indigo}, var(--accent-glow))` }}>{initials}</span>
                         {expanded && (
                             <span className="min-w-0">
                                 <span className="block text-sm font-semibold leading-tight truncate" style={{ color: WK.ink }}>{username}</span>

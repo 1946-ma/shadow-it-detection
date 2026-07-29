@@ -14,9 +14,12 @@
     --glass-blur: blur(18px);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
-    /* Accent palette */
+    /* Accent palette — runtime-themeable (see frontend/lib/accent.ts). The
+       pre-hydration script in app/layout.tsx overrides these four on :root. */
     --accent-primary: #2a7477;
     --accent-glow: #4a9ea1;
+    --accent-rgb: 42, 116, 119;
+    --accent-tint: #e2efef;
     --accent-danger: #ef4444;
     --accent-warning: #f59e0b;
     --accent-success: #10b981;
@@ -38,7 +41,7 @@ html:not(.dark) {
     --bg-surface: rgba(15, 23, 42, 0.04);
     --bg-surface-hover: rgba(15, 23, 42, 0.08);
     --glass-bg: rgba(255, 255, 255, 0.98);
-    --glass-border: rgba(42, 116, 119, 0.35);
+    --glass-border: rgba(var(--accent-rgb), 0.35);
     --glass-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
     --text-primary: #0f172a;
     --text-muted: #1f2937;
@@ -61,14 +64,14 @@ body {
 
 html.dark body {
     background-image:
-        radial-gradient(ellipse at 20% 20%, rgba(42, 116, 119, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 20%, rgba(var(--accent-rgb), 0.12) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.10) 0%, transparent 60%),
         radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
 }
 
 html:not(.dark) body {
     background-image:
-        radial-gradient(ellipse at 20% 20%, rgba(42, 116, 119, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 20%, rgba(var(--accent-rgb), 0.06) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
 }
 
@@ -88,7 +91,7 @@ html:not(.dark) body {
 }
 
 .glow-blue {
-    box-shadow: 0 0 20px rgba(42, 116, 119, 0.4);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.4);
 }
 
 .glow-red {
@@ -112,7 +115,7 @@ select {
     background-color: rgba(255, 255, 255, 0.05) !important;
     color: #e2e8f0 !important;
     color-scheme: dark !important;
-    accent-color: #2a7477 !important;
+    accent-color: var(--accent-primary) !important;
 }
 
 select option {
@@ -124,7 +127,7 @@ html:not(.dark) select {
     background-color: #f1f5f9 !important;
     color: #0f172a !important;
     color-scheme: light !important;
-    accent-color: #2a7477 !important;
+    accent-color: var(--accent-primary) !important;
     border: 1px solid #cbd5e1 !important;
 }
 
@@ -139,7 +142,7 @@ select option:hover {
 }
 
 select option:checked {
-    background-color: #2a7477 !important;
+    background-color: var(--accent-primary) !important;
     color: #ffffff !important;
 }
 
@@ -217,14 +220,14 @@ html:not(.dark) aside nav a div {
 }
 
 html:not(.dark) aside nav a div:hover {
-    background: rgba(42, 116, 119, 0.08) !important;
+    background: rgba(var(--accent-rgb), 0.08) !important;
     color: #1f5658 !important;
 }
 
 html:not(.dark) aside nav a div[class*="bg-blue"] {
-    background: rgba(42, 116, 119, 0.12) !important;
+    background: rgba(var(--accent-rgb), 0.12) !important;
     color: #1f5658 !important;
-    border-color: #2a7477 !important;
+    border-color: var(--accent-primary) !important;
 }
 
 /* Navigation icons */
@@ -344,11 +347,11 @@ html:not(.dark) button:hover {
 /* Blue primary buttons */
 html:not(.dark) button[class*="bg-blue"],
 html:not(.dark) button[class*="text-blue"] {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 html:not(.dark) button[class*="border-blue"] {
-    border-color: rgba(42, 116, 119, 0.3) !important;
+    border-color: rgba(var(--accent-rgb), 0.3) !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -407,7 +410,7 @@ html:not(.dark) [class*="Card"] {
 html:not(.dark) .card:hover,
 html:not(.dark) .content-card:hover,
 html:not(.dark) [class*="card"]:hover {
-    border-color: rgba(42, 116, 119, 0.30) !important;
+    border-color: rgba(var(--accent-rgb), 0.30) !important;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09) !important;
 }
 
@@ -424,8 +427,8 @@ html:not(.dark) [class*="item-row"] {
 
 html:not(.dark) .ranked-item:hover,
 html:not(.dark) .domain-item:hover {
-    border-color: rgba(42, 116, 119, 0.20) !important;
-    background: rgba(42, 116, 119, 0.03) !important;
+    border-color: rgba(var(--accent-rgb), 0.20) !important;
+    background: rgba(var(--accent-rgb), 0.03) !important;
 }
 
 /* ─ 5. TABLE DIVIDERS ─ */
@@ -446,7 +449,7 @@ html:not(.dark) .table-row {
 }
 
 html:not(.dark) tbody tr:hover {
-    background: rgba(42, 116, 119, 0.03) !important;
+    background: rgba(var(--accent-rgb), 0.03) !important;
 }
 
 /* ─ 6. SEARCH BAR BORDER ─ */
@@ -459,8 +462,8 @@ html:not(.dark) .topbar input {
 
 html:not(.dark) .search-bar:focus,
 html:not(.dark) input[type="search"]:focus {
-    border-color: rgba(42, 116, 119, 0.50) !important;
-    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.10) !important;
+    border-color: rgba(var(--accent-rgb), 0.50) !important;
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.10) !important;
     outline: none !important;
 }
 
@@ -517,8 +520,8 @@ html:not(.dark) input.bg-slate-100.dark\:bg-white\/5 {
 }
 
 html:not(.dark) input.w-full.px-4.py-3.rounded-lg.bg-slate-100:focus {
-    border-color: #2a7477 !important;
-    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.10) !important;
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.10) !important;
     outline: none !important;
 }
 
@@ -536,16 +539,16 @@ html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium {
 }
 
 html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium:hover {
-    background: rgba(42, 116, 119, 0.06) !important;
-    border-color: rgba(42, 116, 119, 0.30) !important;
+    background: rgba(var(--accent-rgb), 0.06) !important;
+    border-color: rgba(var(--accent-rgb), 0.30) !important;
     color: #1f5658 !important;
 }
 
 html:not(.dark) button.bg-blue-600.text-white,
 html:not(.dark) button.px-4.py-2.rounded-lg.text-sm.font-medium.bg-blue-600 {
-    background: #2a7477 !important;
+    background: var(--accent-primary) !important;
     color: #ffffff !important;
-    border-color: #2a7477 !important;
+    border-color: var(--accent-primary) !important;
 }
 
 /* ─ 5. AUDIT LOG ENTRY ROWS ─ */
@@ -557,14 +560,14 @@ html:not(.dark) .glass.p-5 {
 }
 
 html:not(.dark) .glass.p-5:hover {
-    border-color: rgba(42, 116, 119, 0.25) !important;
+    border-color: rgba(var(--accent-rgb), 0.25) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
 }
 
 /* Action type text colors */
 html:not(.dark) span.text-blue-400,
 html:not(.dark) .text-blue-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 html:not(.dark) span.text-purple-400,
@@ -584,7 +587,7 @@ html:not(.dark) .text-red-400 {
 
 html:not(.dark) span.text-emerald-400,
 html:not(.dark) .text-emerald-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 /* "on" connector text */
@@ -604,7 +607,7 @@ html:not(.dark) .text-xs.text-slate-700.dark\:text-slate-500 {
 }
 
 html:not(.dark) span.text-slate-300 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 /* ─ 6. ACTION BADGE PILLS ─ */
@@ -620,9 +623,9 @@ html:not(.dark) span.inline-flex.items-center.rounded-full.text-xs.font-medium.b
 
 /* Login badge */
 html:not(.dark) span.bg-blue-500\/15.text-blue-400 {
-    color: #2a7477 !important;
-    border-color: #2a7477 !important;
-    background: rgba(42, 116, 119, 0.06) !important;
+    color: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+    background: rgba(var(--accent-rgb), 0.06) !important;
 }
 
 /* View badge */
@@ -648,8 +651,8 @@ html:not(.dark) span.bg-red-500\/15.text-red-400 {
 
 /* Create badge */
 html:not(.dark) span.bg-emerald-500\/15.text-emerald-400 {
-    color: #2a7477 !important;
-    border-color: #2a7477 !important;
+    color: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
     background: rgba(22, 163, 74, 0.06) !important;
 }
 
@@ -688,8 +691,8 @@ html:not(.dark) [class*="bg-"][class*="\/10"].flex.items-center.justify-center {
 
 /* Color-specific icon boxes */
 html:not(.dark) .bg-blue-500\/10 {
-    background: rgba(42, 116, 119, 0.08) !important;
-    color: #2a7477 !important;
+    background: rgba(var(--accent-rgb), 0.08) !important;
+    color: var(--accent-primary) !important;
 }
 
 html:not(.dark) .bg-slate-500\/10 {
@@ -699,7 +702,7 @@ html:not(.dark) .bg-slate-500\/10 {
 
 html:not(.dark) .bg-emerald-500\/10 {
     background: rgba(16, 163, 74, 0.08) !important;
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 html:not(.dark) .bg-amber-500\/10 {
@@ -732,17 +735,17 @@ html:not(.dark) .p-4.rounded-lg.bg-white\/3 {
 
 html:not(.dark) .border.border-white\/10:hover,
 html:not(.dark) .p-4.rounded-lg.bg-white\/3:hover {
-    border-color: rgba(42, 116, 119, 0.25) !important;
-    background: rgba(42, 116, 119, 0.02) !important;
+    border-color: rgba(var(--accent-rgb), 0.25) !important;
+    background: rgba(var(--accent-rgb), 0.02) !important;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05) !important;
 }
 
 /* ─ 2. RANKED NUMBER BADGES (the circles with 1,2,3,4,5) ─ */
 /* Blue badges — Flagged Domains */
 html:not(.dark) .bg-blue-500\/20.text-blue-400 {
-    background: rgba(42, 116, 119, 0.12) !important;
-    color: #2a7477 !important;
-    border: 1px solid rgba(42, 116, 119, 0.20) !important;
+    background: rgba(var(--accent-rgb), 0.12) !important;
+    color: var(--accent-primary) !important;
+    border: 1px solid rgba(var(--accent-rgb), 0.20) !important;
 }
 
 /* Orange badges — Unknown Devices */
@@ -755,7 +758,7 @@ html:not(.dark) .bg-orange-500\/20.text-orange-400 {
 /* ─ 3. COUNT NUMBERS ON RIGHT ─ */
 /* Blue counts — Flagged Domains */
 html:not(.dark) .text-sm.font-bold.text-blue-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
     font-weight: 700 !important;
 }
 
@@ -780,7 +783,7 @@ html:not(.dark) .h-1\.5.bg-white\/5.overflow-hidden.border {
 
 /* Blue fill — Flagged Domains */
 html:not(.dark) .bg-blue-500\/60.rounded-full {
-    background: #2a7477 !important;
+    background: var(--accent-primary) !important;
     border-radius: 999px !important;
 }
 
@@ -812,7 +815,7 @@ html:not(.dark) .border.border-emerald-500\/20 {
 }
 
 html:not(.dark) .from-emerald-500\/10:hover {
-    border-color: rgba(42, 116, 119, 0.22) !important;
+    border-color: rgba(var(--accent-rgb), 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -826,7 +829,7 @@ html:not(.dark) .border.border-blue-500\/20 {
 }
 
 html:not(.dark) .from-blue-500\/10:hover {
-    border-color: rgba(42, 116, 119, 0.22) !important;
+    border-color: rgba(var(--accent-rgb), 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -840,7 +843,7 @@ html:not(.dark) .border.border-purple-500\/20 {
 }
 
 html:not(.dark) .from-purple-500\/10:hover {
-    border-color: rgba(42, 116, 119, 0.22) !important;
+    border-color: rgba(var(--accent-rgb), 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -854,7 +857,7 @@ html:not(.dark) .border.border-cyan-500\/20 {
 }
 
 html:not(.dark) .from-cyan-500\/10:hover {
-    border-color: rgba(42, 116, 119, 0.22) !important;
+    border-color: rgba(var(--accent-rgb), 0.22) !important;
     box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07) !important;
 }
 
@@ -876,27 +879,27 @@ html:not(.dark) .text-sm.font-semibold.text-cyan-400 {
 /* ─ 7. STATUS INDICATOR DOTS & VALUES ─ */
 /* Active dot — green */
 html:not(.dark) .bg-emerald-500.animate-pulse {
-    background: #2a7477 !important;
+    background: var(--accent-primary) !important;
     box-shadow: 0 0 6px rgba(22, 163, 74, 0.4) !important;
 }
 
 html:not(.dark) .text-emerald-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 /* Connected dot — cyan */
 html:not(.dark) .bg-cyan-500.animate-pulse {
-    background: #2a7477 !important;
+    background: var(--accent-primary) !important;
     box-shadow: 0 0 6px rgba(8, 145, 178, 0.4) !important;
 }
 
 html:not(.dark) .text-cyan-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 /* Records Processed value */
 html:not(.dark) .text-blue-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
     font-weight: 700 !important;
 }
 
@@ -923,9 +926,9 @@ html:not(.dark) .glass.p-6 {
 /* Hardcoded semantic colors that work in both light and dark modes */
 
 .badge-login {
-    background: rgba(42, 116, 119, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
     color: #1f5658;
-    border: 1px solid rgba(42, 116, 119, 0.25);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
 }
 
 .badge-logout {
@@ -954,13 +957,13 @@ html:not(.dark) .glass.p-6 {
 
 .badge-create {
     background: rgba(21, 128, 61, 0.15);
-    color: #2a7477;
+    color: var(--accent-primary);
     border: 1px solid rgba(21, 128, 61, 0.25);
 }
 
 .badge-detection {
     background: rgba(8, 145, 178, 0.15);
-    color: #2a7477;
+    color: var(--accent-primary);
     border: 1px solid rgba(8, 145, 178, 0.25);
 }
 
@@ -972,7 +975,7 @@ html:not(.dark) .glass.p-6 {
 
 /* Dark mode variants — slightly brighter */
 .dark .badge-login {
-    background: rgba(42, 116, 119, 0.20);
+    background: rgba(var(--accent-rgb), 0.20);
     color: #93c5fd;
 }
 
@@ -1008,7 +1011,7 @@ html:not(.dark) .glass.p-6 {
 
 /* ─ 2. OUTCOME COLORS (BOTH MODES) ─ */
 .outcome-success {
-    color: #2a7477;
+    color: var(--accent-primary);
 }
 
 .outcome-denied {
@@ -1093,7 +1096,7 @@ html:not(.dark) .audit-stat-value {
 
 /* Source IP color in light mode */
 html:not(.dark) .text-sm.font-mono.text-blue-600.dark\:text-blue-400 {
-    color: #2a7477 !important;
+    color: var(--accent-primary) !important;
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -1207,21 +1210,21 @@ html:not(.dark) .search-results-dropdown button:hover {
 
 /* Active (keyboard-highlighted) result row */
 html:not(.dark) .search-result-active {
-    background: rgba(42, 116, 119, 0.08) !important;
+    background: rgba(var(--accent-rgb), 0.08) !important;
 }
 
 .dark .search-result-active {
-    background: rgba(42, 116, 119, 0.15) !important;
+    background: rgba(var(--accent-rgb), 0.15) !important;
 }
 
 /* Active icon */
 html:not(.dark) .search-result-active .search-result-icon {
-    background: rgba(42, 116, 119, 0.15) !important;
-    color: #2a7477 !important;
+    background: rgba(var(--accent-rgb), 0.15) !important;
+    color: var(--accent-primary) !important;
 }
 
 .dark .search-result-active .search-result-icon {
-    background: rgba(42, 116, 119, 0.2) !important;
+    background: rgba(var(--accent-rgb), 0.2) !important;
     color: #93c5fd !important;
 }
 
@@ -1308,7 +1311,7 @@ html:not(.dark) .search-no-results {
     font-size: 11px;
     font-weight: 600;
     background: rgba(22, 163, 74, 0.12);
-    color: #2a7477;
+    color: var(--accent-primary);
     border: 1px solid rgba(22, 163, 74, 0.25);
 }
 
@@ -1329,7 +1332,7 @@ html:not(.dark) .search-no-results {
     /* Teal-Minimal palette (black & white + single teal accent) */
     --wk-navy:      #14201f;   /* ink / dark surfaces */
     --wk-navy-bg:   #101817;   /* login page canvas (near-black) */
-    --wk-indigo:    #2a7477;   /* PRIMARY teal (buttons, active, links) */
+    --wk-indigo:    var(--accent-primary);   /* PRIMARY teal (buttons, active, links) */
     --wk-indigo-2:  #1f5658;   /* teal hover */
     --wk-coral:     #1c2624;   /* high-risk / strongest ink */
     --wk-gold:      #9aa7a5;   /* medium / muted gray */
@@ -1412,7 +1415,7 @@ html:not(.dark) .auth-dark h1 { font-family: "Inter", sans-serif !important; let
 .wk-input::placeholder { color: #b6bacb; }
 .wk-input:focus {
     border-color: var(--wk-indigo);
-    box-shadow: 0 0 0 4px rgba(42, 116, 119, 0.12);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.12);
     background: #fff;
 }
 
@@ -1449,7 +1452,7 @@ html:not(.dark) {
     --bg-base: #f5f6f6;
     --text-primary: #14201f;
     --text-muted: #7c8b89;
-    --accent-primary: #2a7477;
+    --accent-primary: var(--accent-primary);
     --glass-bg: #ffffff;
     --glass-border: #e6e9e8;
 }
@@ -1476,23 +1479,23 @@ html:not(.dark) .glass h3 { color: #14201f !important; }
 
 /* ── Primary blue → WINCK indigo ── */
 html:not(.dark) .bg-blue-600,
-html:not(.dark) .bg-blue-500 { background-color: #2a7477 !important; }
+html:not(.dark) .bg-blue-500 { background-color: var(--accent-primary) !important; }
 html:not(.dark) .hover\:bg-blue-500:hover,
 html:not(.dark) .hover\:bg-blue-600:hover { background-color: #1f5658 !important; }
 html:not(.dark) .text-blue-300,
 html:not(.dark) .text-blue-400,
 html:not(.dark) .text-blue-500,
-html:not(.dark) .text-blue-600 { color: #2a7477 !important; }
+html:not(.dark) .text-blue-600 { color: var(--accent-primary) !important; }
 html:not(.dark) .bg-blue-500\/10,
 html:not(.dark) .bg-blue-500\/15,
 html:not(.dark) .bg-blue-500\/20,
-html:not(.dark) .bg-blue-500\/30 { background-color: rgba(42, 116, 119, 0.12) !important; }
-html:not(.dark) .bg-blue-500\/40 { background-color: rgba(42, 116, 119, 0.18) !important; }
+html:not(.dark) .bg-blue-500\/30 { background-color: rgba(var(--accent-rgb), 0.12) !important; }
+html:not(.dark) .bg-blue-500\/40 { background-color: rgba(var(--accent-rgb), 0.18) !important; }
 html:not(.dark) .border-blue-500\/20,
 html:not(.dark) .border-blue-500\/25,
 html:not(.dark) .border-blue-500\/30,
-html:not(.dark) .border-blue-500\/40 { border-color: rgba(42, 116, 119, 0.25) !important; }
-html:not(.dark) .bg-blue-500\/60 { background-color: #2a7477 !important; }
+html:not(.dark) .border-blue-500\/40 { border-color: rgba(var(--accent-rgb), 0.25) !important; }
+html:not(.dark) .bg-blue-500\/60 { background-color: var(--accent-primary) !important; }
 
 /* ── Red → coral ── */
 html:not(.dark) .text-red-300,
@@ -1528,12 +1531,12 @@ html:not(.dark) .text-emerald-300,
 html:not(.dark) .text-emerald-400 { color: #1f9d57 !important; }
 html:not(.dark) .bg-emerald-500,
 html:not(.dark) .bg-emerald-500\/60,
-html:not(.dark) .bg-emerald-500\/70 { background-color: #2a7477 !important; }
+html:not(.dark) .bg-emerald-500\/70 { background-color: var(--accent-primary) !important; }
 html:not(.dark) .bg-emerald-500\/10,
 html:not(.dark) .bg-emerald-500\/15,
-html:not(.dark) .bg-emerald-500\/20 { background-color: rgba(42, 116, 119, 0.14) !important; }
+html:not(.dark) .bg-emerald-500\/20 { background-color: rgba(var(--accent-rgb), 0.14) !important; }
 html:not(.dark) .border-emerald-500\/20,
-html:not(.dark) .border-emerald-500\/30 { border-color: rgba(42, 116, 119, 0.30) !important; }
+html:not(.dark) .border-emerald-500\/30 { border-color: rgba(var(--accent-rgb), 0.30) !important; }
 
 /* ── Purple → periwinkle-indigo · Orange → warm coral ── */
 html:not(.dark) .text-purple-300,
@@ -1557,16 +1560,16 @@ html:not(.dark) .border-orange-500\/20,
 html:not(.dark) .border-orange-500\/30 { border-color: rgba(124, 139, 137, 0.28) !important; }
 
 /* Cyan (system status) → indigo family for consistency */
-html:not(.dark) .text-cyan-400 { color: #2a7477 !important; }
+html:not(.dark) .text-cyan-400 { color: var(--accent-primary) !important; }
 html:not(.dark) .bg-cyan-500\/10,
-html:not(.dark) .bg-cyan-500\/20 { background-color: rgba(42, 116, 119, 0.10) !important; }
+html:not(.dark) .bg-cyan-500\/20 { background-color: rgba(var(--accent-rgb), 0.10) !important; }
 
 /* Inputs → WINCK focus ring */
 html:not(.dark) input:focus,
 html:not(.dark) textarea:focus,
 html:not(.dark) select:focus {
-    border-color: #2a7477 !important;
-    box-shadow: 0 0 0 3px rgba(42, 116, 119, 0.12) !important;
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12) !important;
     outline: none !important;
 }
 
@@ -1615,7 +1618,7 @@ html:not(.dark) [class*="bg-gradient"].text-white { color: #ffffff !important; }
 .md-body li > ul, .md-body li > ol { margin: 4px 0; }
 .md-body strong { font-weight: 650; color: #14201f; }
 .md-body em { font-style: italic; }
-.md-body a { color: #2a7477; text-decoration: underline; }
+.md-body a { color: var(--accent-primary); text-decoration: underline; }
 .md-body a:hover { color: #1f5658; }
 .md-body code {
     font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;

@@ -14,7 +14,7 @@ import { isAdmin } from '@/lib/auth'
 import type { DashboardSummary, TimelinePoint, TopOffender } from '@/lib/types'
 
 const WK = {
-    navy: '#14201f', indigo: '#2a7477', coral: '#ff5a6e', gold: '#9aa7a5',
+    navy: '#14201f', indigo: 'var(--accent-primary)', coral: '#ff5a6e', gold: '#9aa7a5',
     pink: '#e2e6e4', peri: '#7fb0b2', ink: '#14201f', muted: '#7c8b89',
     line: '#e6e9e8', canvas: '#f5f6f6', white: '#ffffff',
 }
@@ -158,7 +158,7 @@ export default function DashboardPage() {
                     {/* KPI row */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                         <KpiCard label="Resolved" value={summary.resolved} sub={`/ ${total.toLocaleString()}`}
-                            pct={resolvedPct} accent="#2a7477" />
+                            pct={resolvedPct} accent="var(--accent-primary)" />
                         <KpiCard label="High Risk" value={byRisk.high ?? 0} sub={`/ ${total.toLocaleString()}`}
                             pct={highPct} accent="#1c2624" />
                         <PromoCard admin={admin} running={running} exporting={exporting}
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                     <div className="wk-panel p-6">
                         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                             <div className="flex items-center gap-2.5">
-                                <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#e2efef' }}>
+                                <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-tint)' }}>
                                     <BarChart3 className="w-4 h-4" style={{ color: WK.indigo }} />
                                 </span>
                                 <h3 className="text-lg font-bold" style={{ color: WK.ink }}>{tab}</h3>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
                 </div>
                 {blockResult && (
                     <div className="mb-4 rounded-xl px-4 py-3 text-xs font-medium"
-                        style={{ background: blockResult.ok ? '#e2efef' : '#eef1f0', color: blockResult.ok ? WK.indigo : WK.coral }}>
+                        style={{ background: blockResult.ok ? 'var(--accent-tint)' : '#eef1f0', color: blockResult.ok ? WK.indigo : WK.coral }}>
                         {blockResult.message}{' '}
                         <Link href="/dashboard/firewall-rules" className="underline">View details →</Link>
                     </div>
@@ -255,7 +255,7 @@ export default function DashboardPage() {
                                         <td className="py-3 pr-4 text-xs cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.muted }}>{fmtTs(d.detected_at)}</td>
                                         <td className="py-3 pr-4 text-xs font-mono cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.ink }}>{d.src_ip}</td>
                                         <td className="py-3 pr-4 text-xs cursor-pointer" onClick={() => router.push('/dashboard/alerts')} style={{ color: WK.ink }}>{d.dst_domain || '—'}</td>
-                                        <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}><Pill text={d.shadow_it_type || 'unknown'} bg="#e2efef" fg={WK.indigo} /></td>
+                                        <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}><Pill text={d.shadow_it_type || 'unknown'} bg="var(--accent-tint)" fg={WK.indigo} /></td>
                                         <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}><RiskPill risk={d.risk_level} /></td>
                                         <td className="py-3 pr-4 cursor-pointer" onClick={() => router.push('/dashboard/alerts')}>
                                             <Pill text={d.is_resolved ? 'resolved' : 'open'}
@@ -335,7 +335,7 @@ function PromoCard({ admin, running, exporting, onRun, onExport }: {
     return (
         <div className="rounded-[22px] p-5 flex flex-col justify-between relative overflow-hidden"
             style={{ background: WK.indigo, minHeight: 170 }}>
-            <div className="absolute rounded-full" style={{ width: 120, height: 120, background: '#4a9ea1', opacity: 0.5, top: -30, right: -30 }} />
+            <div className="absolute rounded-full" style={{ width: 120, height: 120, background: 'var(--accent-glow)', opacity: 0.5, top: -30, right: -30 }} />
             <p className="text-white font-bold text-lg leading-snug relative z-10">Strengthen your<br />security posture</p>
             <div className="relative z-10 mt-4 space-y-2">
                 {admin ? (
@@ -424,7 +424,7 @@ function RiskView({ byRisk, total }: { byRisk: Partial<Record<string, number>>; 
 
 function TypeView({ byType }: { byType: Partial<Record<string, number>> }) {
     const rows = [
-        { label: 'Software', desc: 'Unauthorized apps', value: byType.software ?? 0, icon: Code2, bg: '#e2efef', fg: WK.indigo },
+        { label: 'Software', desc: 'Unauthorized apps', value: byType.software ?? 0, icon: Code2, bg: 'var(--accent-tint)', fg: WK.indigo },
         { label: 'Hardware', desc: 'Unauthorized devices', value: byType.hardware ?? 0, icon: Cpu, bg: '#eef1f0', fg: WK.coral },
         ...(byType.mixed != null ? [{ label: 'Mixed', desc: 'Hardware + software', value: byType.mixed, icon: Smartphone, bg: '#eef1f0', fg: '#6b7a78' }] : []),
     ]
@@ -478,7 +478,7 @@ function RankedList({ items, accent, mono, empty }: {
 function TileLink({ href, icon: Icon, label }: { href: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; label: string }) {
     return (
         <Link href={href} className="wk-panel p-5 flex flex-col items-center justify-center gap-2 text-center hover:-translate-y-0.5 transition-transform" style={{ borderRadius: 18 }}>
-            <span className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: '#e2efef' }}>
+            <span className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-tint)' }}>
                 <Icon className="w-5 h-5" style={{ color: WK.indigo }} />
             </span>
             <span className="text-sm font-semibold" style={{ color: WK.ink }}>{label}</span>
@@ -518,7 +518,7 @@ function Pill({ text, bg, fg }: { text: string; bg: string; fg: string }) {
 
 function RiskPill({ risk }: { risk: string | null }) {
     const map: Record<string, { bg: string; fg: string }> = {
-        high: { bg: '#eef1f0', fg: WK.coral }, medium: { bg: '#eef1f0', fg: '#6b7a78' }, low: { bg: '#e2efef', fg: WK.indigo },
+        high: { bg: '#eef1f0', fg: WK.coral }, medium: { bg: '#eef1f0', fg: '#6b7a78' }, low: { bg: 'var(--accent-tint)', fg: WK.indigo },
     }
     const c = map[risk ?? ''] ?? { bg: '#eef1f0', fg: WK.muted }
     return <span className="text-xs font-bold rounded-full px-2.5 py-1 uppercase" style={{ background: c.bg, color: c.fg }}>{risk ?? '—'}</span>

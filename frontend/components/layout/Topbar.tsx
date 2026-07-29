@@ -288,7 +288,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
                             >
                                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #2a7477, #4a9ea1)' }}>
+                                    style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-glow))' }}>
                                     {username.split(' ')[0]?.charAt(0).toUpperCase()}{username.split(' ')[1]?.charAt(0).toUpperCase() || ''}
                                 </div>
                                 <div className="text-left hidden sm:block">
