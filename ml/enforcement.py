@@ -225,6 +225,56 @@ def apply_via_vmrun(vmx_path: str, user: str, password: str, command: str) -> tu
         return False, f"vmrun execution error: {exc}"
 
 
+def auto_suggest_block(detection_id: int) -> None:
+    """Auto-generate a PENDING firewall-rule suggestion for a detection whose
+    destination is on the default-block list (ml/blocked_services.txt, e.g.
+    ChatGPT) — called from insert_detections() right after the detection row
+    lands, so the rule is ready to review the moment the flow is seen. Deliberately
+    stops at 'pending': this only saves the admin the "Suggest" click, it does
+    NOT run any command — apply_rule() still only ever fires from an explicit
+    PATCH .../approve (see backend/routes/firewall.py). Best-effort: any failure
+    here must never break detection ingestion, so this never raises.
+    """
+    from backend.models.db_models import execute
+
+    try:
+        detection = execute("SELECT * FROM detections WHERE id = %s", (detection_id,), fetch="one")
+        if not detection:
+            return
+        suggestion = generate_rule_suggestion(detection)
+
+        # audit_logs' hash-chain trigger concatenates user_id::TEXT directly —
+        # a NULL there produces a NULL content string and a NULL entry_hash,
+        # silently breaking the tamper-evident chain. Attribute system-generated
+        # suggestions to an admin account instead of NULL (no "system" user
+        # exists; any admin can review/approve these anyway).
+        admin = execute("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1", fetch="one")
+        admin_id = admin["id"] if admin else None
+
+        row = execute(
+            """INSERT INTO firewall_rules
+                   (detection_id, target_ip, target_label, enforcement_kind, rule_action,
+                    dst_domain, rationale, command_text, suggested_by)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               RETURNING id""",
+            (detection_id, suggestion["target_ip"], suggestion["target_label"],
+             suggestion["enforcement_kind"], suggestion["rule_action"], suggestion["dst_domain"],
+             suggestion["rationale"], suggestion["command_text"], admin_id),
+            fetch="one",
+        )
+        if admin_id is not None:
+            execute(
+                "INSERT INTO audit_logs (user_id, action, target, ip_address) VALUES (%s,%s,%s,NULL)",
+                (admin_id, "FIREWALL_RULE_AUTO_SUGGEST",
+                 f"Auto-suggested {suggestion['rule_action']} rule (#{row['id']}) for "
+                 f"{suggestion['target_label']} ({suggestion['target_ip']}) — default-blocked "
+                 f"destination on detection #{detection_id}"),
+            )
+    except Exception:
+        # Never let a default-block suggestion failure break detection ingestion.
+        return
+
+
 def apply_rule(rule: dict) -> tuple[bool, str]:
     """Dispatch a firewall_rules row to the right executor based on its
     target's enforcement_kind. Never raises — always returns (success, output)

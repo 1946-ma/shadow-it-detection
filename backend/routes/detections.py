@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from flask import Blueprint, request, jsonify, g, Response
 
-from backend.models.db_models import execute, detections_has_shadowit_cols
+from backend.models.db_models import execute, detections_has_shadowit_cols, detections_has_classifier_cols
 from backend.middleware.jwt_auth import token_required
 from backend.middleware.rbac import admin_required
 
@@ -43,10 +43,14 @@ def _parse_filters(args):
     source = args.get("source")
     if source is not None and source not in _ALLOWED_SOURCE:
         raise _BadParam("Invalid 'source' filter")
+    classifier_alert = args.get("classifier_alert")
+    if classifier_alert is not None and classifier_alert not in ("true", "false"):
+        raise _BadParam("Invalid 'classifier_alert' filter")
     return {
-        "type":      stype,
-        "risk":      risk,
-        "source":    source,
+        "type":              stype,
+        "risk":              risk,
+        "source":            source,
+        "classifier_alert":  classifier_alert,
         "date_from": _valid_date(args.get("date_from"), "date_from"),
         "date_to":   _valid_date(args.get("date_to"), "date_to"),
     }
@@ -62,6 +66,8 @@ def _apply_filters(f):
         conds.append("risk_level = %s"); params.append(f["risk"])
     if f["source"] and detections_has_shadowit_cols():
         conds.append("detection_source = %s"); params.append(f["source"])
+    if f["classifier_alert"] and detections_has_classifier_cols():
+        conds.append("classifier_alert = %s"); params.append(f["classifier_alert"] == "true")
     if f["date_from"]:
         conds.append("detected_at >= %s"); params.append(f["date_from"])
     if f["date_to"]:

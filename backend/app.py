@@ -48,6 +48,7 @@ def create_app() -> Flask:
     from backend.routes.radius     import radius_bp
     from backend.routes.firewall   import firewall_bp
     from backend.routes.classifier import classifier_bp, maybe_start_periodic_retrain
+    from backend.routes.allowlist  import allowlist_bp
 
     app.register_blueprint(auth_bp,       url_prefix="/api/auth")
     app.register_blueprint(detections_bp, url_prefix="/api/detections")
@@ -61,6 +62,7 @@ def create_app() -> Flask:
     app.register_blueprint(radius_bp,     url_prefix="/api/radius")
     app.register_blueprint(firewall_bp,   url_prefix="/api/firewall")
     app.register_blueprint(classifier_bp, url_prefix="/api/classifier")
+    app.register_blueprint(allowlist_bp,  url_prefix="/api/allowlist")
 
     # Optional background auto-retrain of the behavioural classifier (no-op unless
     # TRAFFIC_CLASS_RETRAIN_HOURS is set).

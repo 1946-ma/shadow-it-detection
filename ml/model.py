@@ -16,12 +16,16 @@ from ml.load_cicids import FEATURE_COLS, load_all, train_mask
 from ml.preprocess  import preprocess, save_scaler, load_scaler
 from ml.oui         import vendor_from_mac
 from ml.ipinfo      import describe_destination
-from ml.traffic_classifier import classify, record_training_sample, BENIGN_LABEL, MIN_CONFIDENCE
+from ml.traffic_classifier import (
+    classify, record_training_sample, BENIGN_LABEL, MIN_CONFIDENCE,
+    WATCHED_CATEGORIES, ALERT_MIN_CONFIDENCE,
+)
 
 ARTIFACTS      = os.path.join(os.path.dirname(__file__), "artifacts")
 MODEL_PATH     = os.path.join(ARTIFACTS, "isolation_forest.pkl")
 RF_PATH        = os.path.join(ARTIFACTS, "random_forest.pkl")
 ALLOWLIST_PATH = os.path.join(os.path.dirname(__file__), "sanctioned_services.txt")
+BLOCKLIST_PATH = os.path.join(os.path.dirname(__file__), "blocked_services.txt")
 CATALOG_PATH   = os.path.join(os.path.dirname(__file__), "saas_catalog.csv")
 
 
@@ -46,6 +50,30 @@ def is_sanctioned(host: str, allowlist: set[str]) -> bool:
         return False
     host = host.lower().rstrip(".")
     return any(host == e or host.endswith("." + e) for e in allowlist)
+
+
+# ── Default-blocked services ───────────────────────────────────────────────────
+# Same file format/matching semantics as the allowlist above, inverted intent:
+# a match here means "auto-suggest a firewall block", not "suppress".
+def load_blocklist(path: str = BLOCKLIST_PATH) -> set[str]:
+    """Default-blocked service domains, lowercased. Empty set if no file."""
+    if not os.path.exists(path):
+        return set()
+    entries = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            entry = line.split("#", 1)[0].strip().lower()
+            if entry:
+                entries.add(entry)
+    return entries
+
+
+def is_blocked(host: str, blocklist: set[str]) -> bool:
+    """True if host matches a blocklist entry exactly or as a subdomain."""
+    if not blocklist or not host:
+        return False
+    host = host.lower().rstrip(".")
+    return any(host == e or host.endswith("." + e) for e in blocklist)
 
 
 # ── Shadow IT SaaS catalog ─────────────────────────────────────────────────────
@@ -266,6 +294,7 @@ def detect(records):
         flagged |= rf.predict(X) == 1
 
     allowlist       = load_allowlist()
+    blocklist       = load_blocklist()
     catalog         = load_saas_catalog()
     suppressed      = 0
     saas_hits       = 0
@@ -295,6 +324,9 @@ def detect(records):
         #  (a) SaaS catalog: an unsanctioned known cloud app IS Shadow IT even if
         #      the flow looks perfectly normal to the ML model.
         #  (b) Anomaly: the hybrid IF+RF flags unusual/attack-like traffic.
+        auto_block       = False
+        classifier_conf  = None
+        classifier_alert = False
         app = match_saas(host, catalog) if host else None
         if app:
             saas_hits += 1
@@ -306,6 +338,10 @@ def detect(records):
             # Ground-truth (features -> catalog category): grows the classifier's
             # training store from named flows (the bank-net testbed's traffic here).
             record_training_sample(row, category)
+            # Known-bad-by-default services (e.g. ChatGPT) get a firewall rule
+            # auto-suggested the moment they're detected — still one admin click
+            # away from actually running (see insert_detections() + auto_suggest_block()).
+            auto_block = is_blocked(host, blocklist)
         elif flagged[i]:
             # Named host → use it; otherwise enrich the raw destination IP
             # (label special ranges / reverse-DNS) or drop pure network noise.
@@ -324,15 +360,20 @@ def detect(records):
             # if the classifier confidently matches a real (non-benign) category,
             # fill the otherwise-empty app_category. detection_source stays
             # "anomaly" — a category on an anomaly row means it was model-predicted.
+            # A STRICTER bar (ALERT_MIN_CONFIDENCE > MIN_CONFIDENCE) gates
+            # classifier_alert — only high-confidence AI/social look-alikes should
+            # interrupt the admin; the cosmetic label can afford to be looser.
             category = None
             cat, conf = classify(row)
             if cat and cat != BENIGN_LABEL and conf >= MIN_CONFIDENCE:
                 category = cat
+                classifier_conf = conf
+                classifier_alert = cat in WATCHED_CATEGORIES and conf >= ALERT_MIN_CONFIDENCE
             source   = "anomaly"
         else:
             continue   # neither a known unsanctioned app nor anomalous — skip
 
-        results.append({
+        result = {
             "src_ip":           str(row.get("Source IP",         "0.0.0.0")),
             "src_mac":          str(row.get("src_mac",           "Unknown")),
             "dst_domain":       dst,
@@ -347,7 +388,11 @@ def detect(records):
             "anomaly_score":    score,
             "app_category":     category,   # SaaS category for catalog hits, else None
             "detection_source": source,     # 'catalog' | 'anomaly'
-        })
+            "classifier_confidence": classifier_conf,   # None unless model-predicted
+            "classifier_alert":      classifier_alert,  # high-confidence AI/social look-alike
+            "_auto_block":           auto_block,         # transient — insert_detections() strips this
+        }
+        results.append(result)
 
     elapsed = time.time() - t0
     notes = []

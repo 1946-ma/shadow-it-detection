@@ -73,13 +73,22 @@ def list_rules():
     if status is not None and status not in _ALLOWED_STATUS:
         return jsonify({"error": "Invalid 'status' filter"}), 400
 
+    detection_id = request.args.get("detection_id")
+    if detection_id is not None and not detection_id.isdigit():
+        return jsonify({"error": "Invalid 'detection_id' filter"}), 400
+
     try:
         page = max(1, int(request.args.get("page", 1)))
         per_page = min(100, max(1, int(request.args.get("per_page", 20))))
     except ValueError:
         return jsonify({"error": "Invalid pagination parameters"}), 400
 
-    where, params = ("WHERE status = %s", [status]) if status else ("", [])
+    conds, params = [], []
+    if status:
+        conds.append("status = %s"); params.append(status)
+    if detection_id:
+        conds.append("detection_id = %s"); params.append(int(detection_id))
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
     params += [per_page, (page - 1) * per_page]
 
     rows = execute(

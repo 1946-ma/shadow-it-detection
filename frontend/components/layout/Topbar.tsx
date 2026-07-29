@@ -44,6 +44,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
     const [searchOpen,       setSearchOpen]       = useState(false)
     const [activeIndex,      setActiveIndex]      = useState(0)
     const [highUnresolved,   setHighUnresolved]   = useState(0)
+    const [aiLookalike,      setAiLookalike]      = useState(0)
 
     const searchRef  = useRef<HTMLDivElement>(null)
     const inputRef   = useRef<HTMLInputElement>(null)
@@ -58,7 +59,10 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
     useEffect(() => {
         const fetchAlerts = () =>
-            statsApi.alerts().then((r) => setHighUnresolved(r.data.high_unresolved)).catch(() => {})
+            statsApi.alerts().then((r) => {
+                setHighUnresolved(r.data.high_unresolved)
+                setAiLookalike(r.data.ai_lookalike_unresolved || 0)
+            }).catch(() => {})
         fetchAlerts()
         const t = setInterval(fetchAlerts, 60_000)
         return () => clearInterval(t)
@@ -233,9 +237,9 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                             title="Unresolved high-risk alerts"
                         >
                             <Bell className="w-5 h-5 text-slate-400 dark:text-white" />
-                            {highUnresolved > 0 && (
+                            {(highUnresolved + aiLookalike) > 0 && (
                                 <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white pointer-events-none">
-                                    {highUnresolved > 99 ? '99+' : highUnresolved}
+                                    {(highUnresolved + aiLookalike) > 99 ? '99+' : highUnresolved + aiLookalike}
                                 </span>
                             )}
                         </motion.button>
@@ -256,12 +260,12 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                                     {/* Header */}
                                     <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2" style={{ background: 'var(--bg-surface)' }}>
                                         <Bell className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                                        <span className="text-sm font-semibold text-white">Unresolved High-Risk Alerts</span>
+                                        <span className="text-sm font-semibold text-white">Unresolved Alerts</span>
                                     </div>
 
                                     <button
                                         onClick={() => { closeNotif(); router.push('/dashboard/alerts?risk=high') }}
-                                        className="w-full text-left px-4 py-4 transition-colors hover:bg-white/5"
+                                        className="w-full text-left px-4 py-4 transition-colors hover:bg-white/5 border-b border-white/5"
                                     >
                                         {highUnresolved > 0 ? (
                                             <div className="flex items-center gap-3">
@@ -272,6 +276,22 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                                             </div>
                                         ) : (
                                             <p className="text-sm text-slate-400">No unresolved high-risk alerts</p>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => { closeNotif(); router.push('/dashboard/alerts?classifier_alert=true') }}
+                                        className="w-full text-left px-4 py-4 transition-colors hover:bg-white/5"
+                                    >
+                                        {aiLookalike > 0 ? (
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0" />
+                                                <p className="text-sm text-white">
+                                                    <span className="font-bold text-violet-400">{aiLookalike}</span> AI/social-lookalike flow{aiLookalike === 1 ? '' : 's'} need review →
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-400">No AI/social-lookalike flows flagged</p>
                                         )}
                                     </button>
                                 </motion.div>

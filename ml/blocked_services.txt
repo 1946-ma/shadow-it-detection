@@ -1,0 +1,8 @@
+# Default-blocked service domains — the inverse of sanctioned_services.txt.
+# A named flow matching one of these (SaaS-catalog hit) is auto-suggested for
+# a firewall block the moment it's detected (still needs one admin click to
+# actually apply — see ml/enforcement.py:auto_suggest_block()). One domain per
+# line, subdomains match automatically (chatgpt.com covers chat.openai.com is
+# NOT implied — list both explicitly since they're unrelated domains).
+chatgpt.com
+chat.openai.com

@@ -110,6 +110,26 @@ def detections_has_shadowit_cols() -> bool:
     return _has_shadowit_cols
 
 
+_has_classifier_cols = None
+
+
+def detections_has_classifier_cols() -> bool:
+    """True if detections has classifier_confidence + classifier_alert (cached)."""
+    global _has_classifier_cols
+    if _has_classifier_cols is None:
+        try:
+            row = execute(
+                """SELECT COUNT(*) AS c FROM information_schema.columns
+                   WHERE table_name = 'detections'
+                   AND column_name IN ('classifier_confidence', 'classifier_alert')""",
+                fetch="one",
+            )
+            _has_classifier_cols = bool(row) and int(row["c"]) == 2
+        except Exception:
+            _has_classifier_cols = False
+    return _has_classifier_cols
+
+
 def insert_detections(records) -> int:
     """Insert detection records atomically. Accepts the dicts produced by
     ml.model.detect() / ml.collector.scan_to_detections(); tolerates missing
@@ -117,8 +137,11 @@ def insert_detections(records) -> int:
     records = list(records)
     if not records:
         return 0
-    extra = detections_has_shadowit_cols()
+    extra      = detections_has_shadowit_cols()
+    classifier = detections_has_classifier_cols()
     cols  = _DET_BASE_COLS + (["app_category", "detection_source"] if extra else [])
+    if classifier:
+        cols += ["classifier_confidence", "classifier_alert"]
     sql   = (f"INSERT INTO detections ({', '.join(cols)}) "
              f"VALUES ({', '.join(['%s'] * len(cols))})")
 
@@ -139,5 +162,31 @@ def insert_detections(records) -> int:
         ]
         if extra:
             vals += [r.get("app_category"), r.get("detection_source", "anomaly")]
+        if classifier:
+            vals += [r.get("classifier_confidence"), bool(r.get("classifier_alert", False))]
         rows.append(tuple(vals))
-    return execute_many(sql, rows)
+    inserted = execute_many(sql, rows)
+
+    # Default-blocked destinations (e.g. ChatGPT — ml/blocked_services.txt) get a
+    # firewall rule auto-suggested the instant they're detected, still requiring
+    # an admin click to actually apply (see ml.enforcement.auto_suggest_block).
+    # `_auto_block` is a transient key set by detect() — never a DB column.
+    auto_block_records = [r for r in records if r.get("_auto_block")]
+    if auto_block_records:
+        try:
+            from ml.enforcement import auto_suggest_block
+            for r in auto_block_records:
+                row = execute(
+                    "SELECT id FROM detections WHERE src_ip = %s AND dst_domain = %s "
+                    "ORDER BY id DESC LIMIT 1",
+                    (r.get("src_ip"), r.get("dst_domain", r.get("Destination IP", "Unknown"))),
+                    fetch="one",
+                )
+                if row:
+                    auto_suggest_block(row["id"])
+        except Exception:
+            # Best-effort — a failure here must never affect the detections
+            # that were already successfully inserted above.
+            pass
+
+    return inserted

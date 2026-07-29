@@ -534,6 +534,66 @@ Working tree clean as of 2026-07-05. Detections table was cleared and repopulate
 
 ---
 
+## Default-Blocked Services + Behavioural Look-alike Alerting (added 2026-07-29)
+Two additions on top of the existing firewall-enforcement pipeline
+(`ml/enforcement.py`, `backend/routes/firewall.py`) and the behavioural
+traffic classifier (`ml/traffic_classifier.py`):
+
+- **Default-blocked services** — `ml/blocked_services.txt` (same one-domain-
+  per-line format as `ml/sanctioned_services.txt`, its inverse in intent),
+  seeded with `chatgpt.com` / `chat.openai.com`. `ml/model.py` gained
+  `load_blocklist()`/`is_blocked()` mirroring the allowlist pair. In
+  `detect()`'s SaaS-catalog branch, a hit against the blocklist sets a
+  transient `_auto_block` key (never persisted — stripped by
+  `insert_detections()`). `backend/models/db_models.py::insert_detections()`
+  looks up the newly-inserted row's id for any `_auto_block` record and calls
+  `ml.enforcement.auto_suggest_block()`, which reuses the existing
+  `generate_rule_suggestion()` and inserts a `firewall_rules` row with
+  `status='pending'` (audit-logged `FIREWALL_RULE_AUTO_SUGGEST`, attributed to
+  an admin account — **not** `NULL`, since `audit_logs`' hash-chain trigger
+  concatenates `user_id::TEXT` directly and a NULL there would silently break
+  the tamper-evident chain). This only saves the admin the "Suggest" click —
+  applying the block still always requires an explicit
+  `PATCH /api/firewall/rules/<id> {status:'approved'}`, same as any other
+  suggestion; no command runs unattended. The Alerts page now checks
+  `GET /api/firewall/rules?detection_id=` (new filter) when a detection is
+  opened and shows **Approve** directly instead of **Suggest Firewall Rule**
+  when a rule already exists.
+- **Behavioural look-alike alerting** — the traffic classifier already learns
+  an `ai` category (ChatGPT/Claude/etc. are catalog-labelled `ai`) and a
+  `social` category from bank-net samples, but previously only cosmetically
+  filled `app_category` on anomaly-flagged flows it couldn't name (see the ML
+  Model Details section above). `ml/traffic_classifier.py` now also defines
+  `WATCHED_CATEGORIES = {"ai", "social"}` and a **stricter**
+  `ALERT_MIN_CONFIDENCE` (env `TRAFFIC_CLASS_ALERT_MIN_CONFIDENCE`, default
+  0.85 — vs. the existing `MIN_CONFIDENCE`/0.6 that just gates the cosmetic
+  label) so an unnamed flow that behaviourally resembles ChatGPT/Claude/a
+  social platform only interrupts the admin when the classifier is genuinely
+  confident, not on every loose label — important while the classifier is
+  still small (bank-net-only training data). `detect()`'s anomaly branch now
+  also computes `classifier_confidence`/`classifier_alert` per flow; two new
+  `detections` columns (`db/migrate_classifier_alert.sql`, also in
+  `db/schema.sql` for fresh installs) store them.
+  `GET /api/stats/alerts` gained `ai_lookalike_unresolved`
+  (`classifier_alert=TRUE AND is_resolved=FALSE`), and the Topbar bell shows
+  it as a second line alongside the existing high-risk count. The Alerts page
+  gained a `classifier_alert` filter and an "AI-like · NN%" badge on flagged
+  rows.
+- **Approve (sanction) API** — sanctioning a service previously meant
+  manually editing `ml/sanctioned_services.txt` on disk (no API existed).
+  New admin-only `POST /api/allowlist/add {detection_id}`
+  (`backend/routes/allowlist.py`) derives the hostname from the detection's
+  stored `dst_domain` (never a free-text field, to avoid writing arbitrary
+  strings into the file that gates detection), appends it to
+  `sanctioned_services.txt` if not already present, audit-logs
+  `ALLOWLIST_ADD`, and resolves the detection. The Alerts page's new
+  **Approve** button is hidden for raw-IP destinations (`is_sanctioned()` only
+  ever matches hostnames). This is a separate mechanism from firewall
+  blocking — approving and blocking a service are deliberately unconnected,
+  same as the pre-existing allowlist/firewall split.
+
+---
+
 ## What's Left / Possible Next Steps
 - Roadmap (`Shadow-IT-Pipeline-Flowchart.png`) — **all four items complete**: concurrent-session detection ✓, AI Assistant ✓, Wazuh software-inventory ingest ✓, RADIUS/AAA accounting feed ✓ (both 2026-07-27)
 - Full bank-net demo rehearsal (Live Scan + Wazuh sync + RADIUS sync run together, cross-checked against `bank-net/EXPECTED.md`) done 2026-07-27 — every device/behaviour row matched; see the git history around that date for details

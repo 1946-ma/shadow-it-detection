@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from backend.models.db_models import execute
+from backend.models.db_models import execute, detections_has_classifier_cols
 from backend.middleware.jwt_auth import token_required
 
 stats_bp = Blueprint("stats", __name__)
@@ -66,7 +66,14 @@ def get_alert_count():
         "SELECT COUNT(*) AS c FROM detections WHERE risk_level = 'high' AND is_resolved = FALSE",
         fetch="one",
     )
-    return jsonify({"high_unresolved": int(row["c"])})
+    ai_lookalike = 0
+    if detections_has_classifier_cols():
+        clf_row = execute(
+            "SELECT COUNT(*) AS c FROM detections WHERE classifier_alert = TRUE AND is_resolved = FALSE",
+            fetch="one",
+        )
+        ai_lookalike = int(clf_row["c"])
+    return jsonify({"high_unresolved": int(row["c"]), "ai_lookalike_unresolved": ai_lookalike})
 
 
 @stats_bp.route("/top-offenders", methods=["GET"])

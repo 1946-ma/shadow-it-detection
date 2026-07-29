@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS detections (
     anomaly_score   FLOAT,
     app_category     VARCHAR(30),                -- SaaS category (catalog hits): ai, cloud-storage, vpn, …
     detection_source VARCHAR(20) NOT NULL DEFAULT 'anomaly',  -- catalog | anomaly | active-scan
+    classifier_confidence FLOAT,                 -- behavioural traffic classifier's predicted-category confidence
+    classifier_alert BOOLEAN NOT NULL DEFAULT FALSE,  -- high-confidence ai/social look-alike (ml/traffic_classifier.py)
     detected_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_resolved     BOOLEAN NOT NULL DEFAULT FALSE
 );

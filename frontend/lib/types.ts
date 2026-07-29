@@ -20,8 +20,10 @@ export interface Detection {
     shadow_it_type: ShadowItType | null
     risk_level: RiskLevel | null
     anomaly_score: number | null
-    app_category?: string | null       // SaaS category for catalog hits (Phase 2)
+    app_category?: string | null       // SaaS category for catalog hits (Phase 2), or classifier-predicted for anomalies
     detection_source?: DetectionSource | null
+    classifier_confidence?: number | null   // set when app_category came from the behavioural classifier, not the catalog
+    classifier_alert?: boolean              // high-confidence ai/social look-alike — surfaced as an admin notification
     detected_at: string
     is_resolved: boolean
 }

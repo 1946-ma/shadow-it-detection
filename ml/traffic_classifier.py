@@ -66,6 +66,21 @@ BENIGN_LABEL   = "benign"
 MIN_CONFIDENCE = float(os.getenv("TRAFFIC_CLASS_MIN_CONFIDENCE", "0.6"))
 _SAMPLE_CAP    = int(os.getenv("TRAFFIC_CLASS_SAMPLE_CAP", "40000"))
 
+# Categories that warrant interrupting the admin (vs. just labelling the flow).
+# Deliberately narrower than the full category set — a look-alike "productivity"
+# or "cloud-storage" flow isn't the same risk story as an unnamed tool that
+# behaves like ChatGPT/Claude or a social platform.
+WATCHED_CATEGORIES = {"ai", "social"}
+
+# Stricter than MIN_CONFIDENCE on purpose: MIN_CONFIDENCE just gates whether the
+# cosmetic app_category label gets filled in at all (cheap to get wrong — it's
+# only a label). ALERT_MIN_CONFIDENCE gates whether that prediction is trusted
+# enough to raise an admin notification (expensive to get wrong — false alarms
+# erode trust in the alert). Kept separately configurable since the classifier
+# starts small (bank-net-only training data) and its accuracy will grow as more
+# live samples accumulate — tighten/loosen without touching the fill threshold.
+ALERT_MIN_CONFIDENCE = float(os.getenv("TRAFFIC_CLASS_ALERT_MIN_CONFIDENCE", "0.85"))
+
 # Cached model, (re)loaded lazily. reload_classifier() clears it after a retrain.
 _clf = None
 _clf_loaded = False
