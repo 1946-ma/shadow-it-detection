@@ -38,6 +38,14 @@ export const authApi = {
     login: (username: string, password: string) =>
         api.post('/api/auth/login', { username, password }),
     logout: () => api.post('/api/auth/logout'),
+    // Admin-only — creates a new user. Rejects a weak password with
+    // 400 { error, details: string[] }.
+    createUser: (username: string, password: string, role: 'admin' | 'viewer') =>
+        api.post('/api/auth/users', { username, password, role }),
+    // Any authenticated user — changes their own password. Does not force
+    // re-login; the current session stays valid until its natural expiry.
+    changePassword: (oldPassword: string, newPassword: string) =>
+        api.post('/api/auth/change-password', { old_password: oldPassword, new_password: newPassword }),
 }
 
 export const detectionsApi = {

@@ -4,11 +4,14 @@ import logging
 import datetime
 import bcrypt
 import jwt
+from psycopg.errors import UniqueViolation
 from flask import Blueprint, request, jsonify, g, make_response
 from dotenv import load_dotenv
 
 from backend.models.db_models import execute, insert_detections
 from backend.middleware.jwt_auth import token_required
+from backend.middleware.rbac import admin_required
+from backend.utils.password_policy import validate_password
 from backend.extensions import limiter, JWT_SECRET
 
 load_dotenv()
@@ -31,11 +34,23 @@ CONCURRENT_SESSION_MAX_IPS = int(os.getenv("CONCURRENT_SESSION_MAX_IPS", 2))
 CONCURRENT_SESSION_ENFORCE = os.getenv("CONCURRENT_SESSION_ENFORCE", "true").lower() == "true"
 
 
+_ALLOWED_ROLES = {"admin", "viewer"}
+
+
 def _audit(user_id, action, target, ip):
     execute(
         "INSERT INTO audit_logs (user_id, action, target, ip_address) VALUES (%s,%s,%s,%s)",
         (user_id, action, target, ip),
     )
+
+
+def _username_key():
+    """Rate-limit key for the per-username login throttle (Gap 4) — mirrors
+    get_remote_address's zero-arg convention, reading from the request
+    context instead of the socket address, so credential-stuffing against one
+    account can't be dodged by rotating source IPs."""
+    body = request.get_json(silent=True) or {}
+    return str(body.get("username", "")).strip().lower() or "unknown"
 
 
 # ── Concurrent-session tracking ────────────────────────────────────────────────
@@ -132,7 +147,8 @@ def _check_and_enforce_concurrency(user_id, username, ip):
 
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("5 per minute")   # throttle brute-force / credential stuffing
+@limiter.limit("5 per minute")                          # per-IP
+@limiter.limit("5 per minute", key_func=_username_key)   # per-username
 def login():
     body     = request.get_json(silent=True) or {}
     username = str(body.get("username", "")).strip()
@@ -204,3 +220,79 @@ def logout():
     resp = make_response(jsonify({"message": "Logged out successfully"}))
     resp.delete_cookie("token", path="/")
     return resp
+
+
+@auth_bp.route("/users", methods=["POST"])
+@token_required
+@admin_required
+def create_user():
+    body     = request.get_json(silent=True) or {}
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    role     = body.get("role")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+    if role not in _ALLOWED_ROLES:
+        return jsonify({"error": "role must be 'admin' or 'viewer'"}), 400
+
+    errors = validate_password(password)
+    if errors:
+        return jsonify({"error": "Password does not meet strength requirements",
+                         "details": errors}), 400
+
+    pw_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    try:
+        row = execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (%s,%s,%s) "
+            "RETURNING id, username, role, created_at",
+            (username, pw_hash, role), fetch="one",
+        )
+    except UniqueViolation:
+        return jsonify({"error": "Username already exists"}), 409
+    except Exception:
+        log.exception("create_user failed")
+        return jsonify({"error": "Could not create user — see server logs"}), 500
+
+    _audit(g.current_user["user_id"], "USER_CREATE",
+           f"Created user '{username}' ({role})", request.remote_addr)
+
+    return jsonify({
+        "id": row["id"], "username": row["username"], "role": row["role"],
+        "created_at": row["created_at"].isoformat(),
+    }), 201
+
+
+@auth_bp.route("/change-password", methods=["POST"])
+@token_required
+def change_password():
+    body         = request.get_json(silent=True) or {}
+    old_password = str(body.get("old_password", ""))
+    new_password = str(body.get("new_password", ""))
+
+    if not old_password or not new_password:
+        return jsonify({"error": "old_password and new_password required"}), 400
+
+    row = execute(
+        "SELECT password_hash FROM users WHERE id = %s",
+        (g.current_user["user_id"],), fetch="one",
+    )
+    if not row:
+        return jsonify({"error": "User not found"}), 404
+
+    if not bcrypt.checkpw(old_password.encode(), row["password_hash"].encode()):
+        return jsonify({"error": "Current password is incorrect"}), 401
+
+    errors = validate_password(new_password)
+    if errors:
+        return jsonify({"error": "Password does not meet strength requirements",
+                         "details": errors}), 400
+
+    new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    execute("UPDATE users SET password_hash = %s WHERE id = %s",
+            (new_hash, g.current_user["user_id"]))
+
+    _audit(g.current_user["user_id"], "PASSWORD_CHANGE",
+           f"User {g.current_user['username']} changed their password", request.remote_addr)
+
+    return jsonify({"message": "Password changed successfully"}), 200

@@ -59,7 +59,12 @@ const PAGE_SIZE = 20
 function AlertsPageInner() {
     const searchParams = useSearchParams()
     const router = useRouter()
-    const admin = isAdmin()
+    // isAdmin() reads a cookie, which is unavailable during server render —
+    // default to false there and pick up the real value after mount so the
+    // first client render matches the server (avoids a hydration mismatch on
+    // every {admin && ...} branch below).
+    const [admin, setAdmin] = useState(false)
+    useEffect(() => { setAdmin(isAdmin()) }, [])
 
     const [detections, setDetections] = useState<Detection[]>([])
     const [total, setTotal] = useState(0)
