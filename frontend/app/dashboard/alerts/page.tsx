@@ -6,9 +6,9 @@ import GlassCard from '@/components/ui/GlassCard'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { StatusIcon } from '@/components/ui/StatusIcon'
 import {
-    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2, ShieldAlert, Ban,
+    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2, ShieldAlert, Ban, Check, Brain,
 } from 'lucide-react'
-import { detectionsApi, statsApi, firewallApi, apiErrorMessage } from '@/lib/api'
+import { detectionsApi, statsApi, firewallApi, allowlistApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { Detection, DashboardSummary } from '@/lib/types'
 
@@ -49,6 +49,16 @@ const SOURCE_META: Record<string, { label: string; cls: string }> = {
 const sourceMeta = (s?: string | null) =>
     (s && SOURCE_META[s]) || { label: s || '—', cls: 'bg-slate-500/15 text-slate-300 border-slate-500/25' }
 
+// dst_domain can be a raw IP (no hostname to sanction — is_sanctioned() only
+// ever matches hostnames) or "App Name (host)" / a bare hostname otherwise.
+const _RAW_IP_RE = /^\d{1,3}(\.\d{1,3}){3}$/
+function isRawIpDestination(dst: string | null | undefined): boolean {
+    if (!dst) return true
+    const m = dst.match(/\(([^)]+)\)\s*$/)
+    const host = m ? m[1] : dst
+    return _RAW_IP_RE.test(host.trim())
+}
+
 function formatTimestamp(iso: string) {
     const d = new Date(iso)
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -72,6 +82,7 @@ function AlertsPageInner() {
     const [typeFilter, setTypeFilter] = useState('')
     const [riskFilter, setRiskFilter] = useState(searchParams.get('risk') || '')
     const [sourceFilter, setSourceFilter] = useState(searchParams.get('source') || '')
+    const [classifierAlertFilter, setClassifierAlertFilter] = useState(searchParams.get('classifier_alert') || '')
     const [loading, setLoading] = useState(true)
     const [selected, setSelected] = useState<Detection | null>(null)
     const [resolving, setResolving] = useState(false)
@@ -84,6 +95,10 @@ function AlertsPageInner() {
     const [blockRule, setBlockRule] = useState<FirewallRule | null>(null)
     const [blocking, setBlocking] = useState(false)
     const [blockResult, setBlockResult] = useState<{ ok: boolean; text: string } | null>(null)
+    const [ruleAutoSuggested, setRuleAutoSuggested] = useState(false)
+    // Approve (sanction) the destination — the other half of "block or approve".
+    const [approving, setApproving] = useState(false)
+    const [approveResult, setApproveResult] = useState<{ ok: boolean; text: string } | null>(null)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -92,6 +107,7 @@ function AlertsPageInner() {
             if (typeFilter) params.type = typeFilter
             if (riskFilter) params.risk = riskFilter
             if (sourceFilter) params.source = sourceFilter
+            if (classifierAlertFilter) params.classifier_alert = classifierAlertFilter
             const res = await detectionsApi.list(params)
             setDetections(res.data.detections || [])
             setTotal(res.data.total || 0)
@@ -100,12 +116,27 @@ function AlertsPageInner() {
         } finally {
             setLoading(false)
         }
-    }, [page, typeFilter, riskFilter, sourceFilter])
+    }, [page, typeFilter, riskFilter, sourceFilter, classifierAlertFilter])
 
     useEffect(() => { load() }, [load])
     useEffect(() => { statsApi.get().then((r) => setSummary(r.data)).catch(() => {}) }, [])
-    useEffect(() => { setPage(1) }, [typeFilter, riskFilter, sourceFilter])
-    useEffect(() => { setSuggestError(''); setSuggestInfo(''); setBlockRule(null); setBlockResult(null) }, [selected])
+    useEffect(() => { setPage(1) }, [typeFilter, riskFilter, sourceFilter, classifierAlertFilter])
+    useEffect(() => {
+        setSuggestError(''); setSuggestInfo(''); setBlockRule(null); setBlockResult(null)
+        setRuleAutoSuggested(false); setApproveResult(null)
+        // A default-blocked destination (e.g. ChatGPT) already has a PENDING rule
+        // auto-suggested on insert (ml/enforcement.py:auto_suggest_block) — show
+        // Approve directly instead of making the admin click Suggest first.
+        if (selected && admin) {
+            firewallApi.forDetection(selected.id).then((r) => {
+                const rule = (r.data.rules || [])[0]
+                if (rule && (rule.status === 'pending' || rule.status === 'apply_failed')) {
+                    setBlockRule(rule as FirewallRule)
+                    setRuleAutoSuggested(true)
+                }
+            }).catch(() => {})
+        }
+    }, [selected, admin])
 
     const markResolved = useCallback(async (id: number) => {
         setResolving(true)
@@ -158,6 +189,22 @@ function AlertsPageInner() {
             setBlockResult({ ok: false, text: apiErrorMessage(err, 'Apply failed') })
         } finally {
             setBlocking(false)
+        }
+    }
+
+    // Approve (sanction) the destination — adds it to ml/sanctioned_services.txt
+    // and resolves the detection. Only meaningful for a resolvable hostname.
+    const handleApprove = async (id: number) => {
+        setApproving(true); setApproveResult(null)
+        try {
+            const res = await allowlistApi.add(id)
+            setApproveResult({ ok: true, text: `Sanctioned '${res.data.domain}' — future flows to it won't be flagged.` })
+            setDetections((prev) => prev.map((d) => (d.id === id ? { ...d, is_resolved: true } : d)))
+            setSelected((prev) => (prev?.id === id ? { ...prev, is_resolved: true } : prev))
+        } catch (err) {
+            setApproveResult({ ok: false, text: apiErrorMessage(err, 'Could not sanction this service') })
+        } finally {
+            setApproving(false)
         }
     }
 
@@ -217,7 +264,7 @@ function AlertsPageInner() {
                         {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Export CSV
                     </motion.button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}
                         className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
                         <option value="">All Sources</option>
@@ -242,6 +289,11 @@ function AlertsPageInner() {
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
                         <option value="low">Low</option>
+                    </select>
+                    <select value={classifierAlertFilter} onChange={(e) => setClassifierAlertFilter(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                        <option value="">All Flows</option>
+                        <option value="true">AI/Social Look-alike</option>
                     </select>
                 </div>
             </GlassCard>
@@ -283,7 +335,14 @@ function AlertsPageInner() {
                                                 className="border-b border-slate-200 dark:border-white/5 cursor-pointer">
                                                 <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatTimestamp(detection.detected_at)}</td>
                                                 <td className="py-3 px-4 text-xs font-mono text-slate-700 dark:text-slate-300">{detection.src_ip}</td>
-                                                <td className="py-3 px-4 text-xs text-slate-700 dark:text-slate-300 max-w-[180px] truncate">{detection.dst_domain || '—'}</td>
+                                                <td className="py-3 px-4 text-xs text-slate-700 dark:text-slate-300 max-w-[180px]">
+                                                    <span className="truncate block">{detection.dst_domain || '—'}</span>
+                                                    {detection.classifier_alert && (
+                                                        <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/15 text-violet-500 border border-violet-500/25">
+                                                            <Brain className="w-2.5 h-2.5" /> AI-like{detection.classifier_confidence != null ? ` · ${(detection.classifier_confidence * 100).toFixed(0)}%` : ''}
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-4 text-xs">
                                                     <span className={`px-2 py-1 rounded border text-[11px] font-medium ${sourceMeta(detection.detection_source).cls}`}>
                                                         {sourceMeta(detection.detection_source).label}
@@ -371,7 +430,11 @@ function AlertsPageInner() {
                                         { label: 'MAC Address', value: selected.src_mac || '—', mono: true },
                                         { label: 'Destination', value: selected.dst_domain || '—' },
                                         { label: 'Detection Source', value: sourceMeta(selected.detection_source).label },
-                                        { label: 'App Category', value: selected.app_category || '—' },
+                                        {
+                                            label: 'App Category', value: selected.app_category
+                                                ? `${selected.app_category}${selected.classifier_alert && selected.classifier_confidence != null ? ` (behavioural · ${(selected.classifier_confidence * 100).toFixed(0)}% confidence)` : ''}`
+                                                : '—'
+                                        },
                                         { label: 'Protocol', value: selected.protocol || '—' },
                                         { label: 'Device', value: selected.device_type || '—' },
                                         { label: 'Shadow IT Type', value: selected.shadow_it_type || '—' },
@@ -396,6 +459,20 @@ function AlertsPageInner() {
                                     </motion.button>
                                 )}
 
+                                {admin && !selected.is_resolved && !isRawIpDestination(selected.dst_domain) && (
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={approving}
+                                        onClick={() => handleApprove(selected.id)}
+                                        className="w-full mt-3 py-2.5 rounded-lg bg-emerald-600/90 text-white hover:bg-emerald-500 transition-all font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        {approving ? 'Approving…' : 'Approve (Sanction This Service)'}
+                                    </motion.button>
+                                )}
+                                {approveResult && (
+                                    <div className={`mt-3 p-3 rounded-lg border text-xs ${approveResult.ok ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500' : 'bg-red-500/10 border-red-500/25 text-red-400'}`}>
+                                        {approveResult.ok ? '✓ ' : '✗ '}{approveResult.text}
+                                    </div>
+                                )}
+
                                 {admin && !blockRule && (
                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={blocking}
                                         onClick={() => startBlock(selected.id)}
@@ -408,6 +485,9 @@ function AlertsPageInner() {
                                 {admin && blockRule && (
                                     <div className="mt-3 p-3 rounded-lg border border-red-500/30 bg-red-500/5 space-y-2">
                                         <p className="text-[11px] uppercase tracking-wide text-red-400 font-semibold">Confirm block · {blockRule.target_label} ({blockRule.target_ip})</p>
+                                        {ruleAutoSuggested && (
+                                            <p className="text-[11px] text-amber-400">Auto-suggested — this destination is on the default-block list (ml/blocked_services.txt). Still requires your approval to actually run.</p>
+                                        )}
                                         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{blockRule.rationale}</p>
                                         <pre className="text-[11px] font-mono whitespace-pre-wrap bg-black/40 text-red-200 rounded p-2 overflow-x-auto">{blockRule.command_text}</pre>
                                         {blockRule.enforcement_kind === 'unknown' && (

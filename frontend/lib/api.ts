@@ -124,10 +124,21 @@ export const firewallApi = {
     generate: (detectionId: number) =>
         api.post('/api/firewall/rules/generate', { detection_id: detectionId }),
     list: (params?: Record<string, unknown>) => api.get('/api/firewall/rules', { params }),
+    // Look up an existing rule for a detection — used to show Approve directly
+    // (skip Suggest) for default-blocked destinations auto-suggested on insert.
+    forDetection: (detectionId: number) =>
+        api.get('/api/firewall/rules', { params: { detection_id: detectionId, per_page: 1 } }),
     // Approving actually runs the command against the real target (SSH /
     // vmrun) — vmrun in particular can take up to ~45s, so a long timeout.
     review: (id: number, status: 'approved' | 'rejected') =>
         api.patch(`/api/firewall/rules/${id}`, { status }, { timeout: 60000 }),
+}
+
+export const allowlistApi = {
+    // Sanctions the detection's destination (appends to
+    // ml/sanctioned_services.txt) and marks the detection resolved.
+    add: (detectionId: number) =>
+        api.post('/api/allowlist/add', { detection_id: detectionId }),
 }
 
 export default api
