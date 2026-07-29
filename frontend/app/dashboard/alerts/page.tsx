@@ -6,11 +6,26 @@ import GlassCard from '@/components/ui/GlassCard'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { StatusIcon } from '@/components/ui/StatusIcon'
 import {
-    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2, ShieldAlert,
+    TrendingUp, AlertCircle, CheckCircle, X, ChevronLeft, ChevronRight, Download, Loader2, ShieldAlert, Ban,
 } from 'lucide-react'
 import { detectionsApi, statsApi, firewallApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { Detection, DashboardSummary } from '@/lib/types'
+
+// A generated firewall rule (from POST /api/firewall/rules/generate) awaiting
+// the admin's confirm-to-apply in the Block flow.
+type FirewallRule = {
+    id: number
+    target_ip: string
+    target_label: string
+    enforcement_kind: string
+    rule_action: string
+    dst_domain: string | null
+    rationale: string
+    command_text: string
+    status?: string
+    execution_output?: string | null
+}
 
 const getRiskColor = (risk: string | null) => {
     switch (risk) {
@@ -60,6 +75,10 @@ function AlertsPageInner() {
     const [suggesting, setSuggesting] = useState(false)
     const [suggestError, setSuggestError] = useState('')
     const [suggestInfo, setSuggestInfo] = useState('')
+    // Direct one-click block: generate a rule, preview it, apply on confirm.
+    const [blockRule, setBlockRule] = useState<FirewallRule | null>(null)
+    const [blocking, setBlocking] = useState(false)
+    const [blockResult, setBlockResult] = useState<{ ok: boolean; text: string } | null>(null)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -81,7 +100,7 @@ function AlertsPageInner() {
     useEffect(() => { load() }, [load])
     useEffect(() => { statsApi.get().then((r) => setSummary(r.data)).catch(() => {}) }, [])
     useEffect(() => { setPage(1) }, [typeFilter, riskFilter, sourceFilter])
-    useEffect(() => { setSuggestError(''); setSuggestInfo('') }, [selected])
+    useEffect(() => { setSuggestError(''); setSuggestInfo(''); setBlockRule(null); setBlockResult(null) }, [selected])
 
     const markResolved = useCallback(async (id: number) => {
         setResolving(true)
@@ -105,6 +124,35 @@ function AlertsPageInner() {
             setSuggestError(apiErrorMessage(err, 'Could not generate a rule suggestion'))
         } finally {
             setSuggesting(false)
+        }
+    }
+
+    // Step 1 of the direct block: generate the rule and show it for confirmation.
+    const startBlock = async (id: number) => {
+        setBlocking(true); setBlockResult(null); setBlockRule(null)
+        try {
+            const res = await firewallApi.generate(id)
+            setBlockRule(res.data as FirewallRule)
+        } catch (err) {
+            setBlockResult({ ok: false, text: apiErrorMessage(err, 'Could not prepare a block rule') })
+        } finally {
+            setBlocking(false)
+        }
+    }
+
+    // Step 2: admin confirmed — approve the rule, which actually runs the command.
+    const confirmBlock = async () => {
+        if (!blockRule) return
+        setBlocking(true)
+        try {
+            const res = await firewallApi.review(blockRule.id, 'approved')
+            const applied = res.data.status === 'applied'
+            setBlockResult({ ok: applied, text: res.data.execution_output || (applied ? 'Block applied.' : 'Apply failed.') })
+            setBlockRule(null)
+        } catch (err) {
+            setBlockResult({ ok: false, text: apiErrorMessage(err, 'Apply failed') })
+        } finally {
+            setBlocking(false)
         }
     }
 
@@ -343,12 +391,50 @@ function AlertsPageInner() {
                                     </motion.button>
                                 )}
 
+                                {admin && !blockRule && (
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={blocking}
+                                        onClick={() => startBlock(selected.id)}
+                                        className="w-full mt-3 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-all font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {blocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                        {blocking ? 'Preparing…' : 'Block This Source'}
+                                    </motion.button>
+                                )}
+
+                                {admin && blockRule && (
+                                    <div className="mt-3 p-3 rounded-lg border border-red-500/30 bg-red-500/5 space-y-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-red-400 font-semibold">Confirm block · {blockRule.target_label} ({blockRule.target_ip})</p>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{blockRule.rationale}</p>
+                                        <pre className="text-[11px] font-mono whitespace-pre-wrap bg-black/40 text-red-200 rounded p-2 overflow-x-auto">{blockRule.command_text}</pre>
+                                        {blockRule.enforcement_kind === 'unknown' && (
+                                            <p className="text-[11px] text-amber-400">No managed enforcement point for {blockRule.target_ip} — advisory only; confirming records it without executing a command.</p>
+                                        )}
+                                        <div className="flex gap-2 pt-1">
+                                            <button onClick={confirmBlock} disabled={blocking}
+                                                className="flex-1 py-2 rounded-lg bg-red-600 text-white hover:bg-red-500 text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                                                {blocking && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                                {blocking ? 'Applying…' : blockRule.enforcement_kind === 'unknown' ? 'Acknowledge' : `Apply ${blockRule.rule_action}`}
+                                            </button>
+                                            <button onClick={() => setBlockRule(null)} disabled={blocking}
+                                                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 text-xs disabled:opacity-50">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {admin && blockResult && (
+                                    <div className={`mt-3 p-3 rounded-lg border text-xs ${blockResult.ok ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500' : 'bg-red-500/10 border-red-500/25 text-red-400'}`}>
+                                        {blockResult.ok ? '✓ Blocked — ' : '✗ Failed — '}{blockResult.text}{' '}
+                                        <button onClick={() => router.push('/dashboard/firewall-rules')} className="underline font-medium">Firewall Rules →</button>
+                                    </div>
+                                )}
+
                                 {admin && (
                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={suggesting}
                                         onClick={() => handleSuggestRule(selected.id)}
                                         className="w-full mt-3 py-2.5 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 border border-red-500/30 transition-all font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                                         {suggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-                                        {suggesting ? 'Generating…' : 'Suggest Firewall Rule'}
+                                        {suggesting ? 'Generating…' : 'Suggest Firewall Rule (draft only)'}
                                     </motion.button>
                                 )}
                                 {suggestError && <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-xs text-red-400">{suggestError}</div>}
