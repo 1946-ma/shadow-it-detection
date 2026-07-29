@@ -104,6 +104,13 @@ export const radiusApi = {
     sync: () => api.post('/api/radius/sync', {}, { timeout: 15000 }),
 }
 
+export const classifierApi = {
+    // Behavioural traffic classifier — last-training summary, no writes.
+    status: () => api.get('/api/classifier/status'),
+    // Retrain on the accumulated bank-net samples (can take a few seconds).
+    retrain: () => api.post('/api/classifier/retrain', {}, { timeout: 60000 }),
+}
+
 export const firewallApi = {
     // Generates a draft rule from a detection — never executes anything.
     generate: (detectionId: number) =>

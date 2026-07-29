@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Play, Square, RefreshCw, Radio, Wifi, Search, ShieldAlert, Server, Package, Users } from 'lucide-react'
+import { Play, Square, RefreshCw, Radio, Wifi, Search, ShieldAlert, Server, Package, Users, Brain } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import { StatusIcon } from '@/components/ui/StatusIcon'
-import { scanApi, wazuhApi, radiusApi, apiErrorMessage } from '@/lib/api'
+import { scanApi, wazuhApi, radiusApi, classifierApi, apiErrorMessage } from '@/lib/api'
 import { isAdmin } from '@/lib/auth'
 import type { ScanStatus, Detection, NetworkInterface, DiscoveredDevice, DiscoverResponse } from '@/lib/types'
 
@@ -79,6 +79,13 @@ export default function LiveScanPage() {
     const [radiusDetections, setRadiusDetections] = useState<Detection[]>([])
     const [radiusStatus, setRadiusStatus] = useState<{ connected: boolean; error: string | null; open_sessions: number; identities: number } | null>(null)
 
+    // Behavioural traffic classifier — status + retrain (enrichment only, no
+    // detections/blocking; it fills app_category on anomaly-flagged flows).
+    const [clfRetraining, setClfRetraining] = useState(false)
+    const [clfError, setClfError] = useState('')
+    const [clfInfo, setClfInfo] = useState('')
+    const [clfStatus, setClfStatus] = useState<{ trained: boolean; categories: string[]; n_samples: number; accuracy: number | null; trained_at: string | null; min_confidence?: number } | null>(null)
+
     const selectedIp = interfaces.find((i) => i.device === iface)?.ip || ''
     const subnet = selectedIp ? `${selectedIp.split('.').slice(0, 3).join('.')}.0/24` : ''
 
@@ -98,6 +105,9 @@ export default function LiveScanPage() {
         radiusApi.status()
             .then((r) => setRadiusStatus(r.data))
             .catch((e) => setRadiusStatus({ connected: false, error: apiErrorMessage(e, 'Could not reach RADIUS accounting'), open_sessions: 0, identities: 0 }))
+        classifierApi.status()
+            .then((r) => setClfStatus(r.data))
+            .catch(() => setClfStatus(null))
     }, [])
 
     const poll = useCallback(async () => {
@@ -185,6 +195,24 @@ export default function LiveScanPage() {
         } finally {
             setWazuhSyncing(false)
             wazuhApi.status().then((r) => setWazuhStatus(r.data)).catch(() => {})
+        }
+    }
+
+    const handleClassifierRetrain = async () => {
+        setClfRetraining(true); setClfError(''); setClfInfo('')
+        try {
+            const r = await classifierApi.retrain()
+            if (r.data.trained === false) {
+                setClfError(r.data.error || 'Not enough samples to train yet.')
+            } else {
+                const acc = r.data.accuracy != null ? `${(r.data.accuracy * 100).toFixed(1)}% holdout accuracy` : ''
+                setClfInfo(`Retrained on ${r.data.n_samples} samples · ${acc}`)
+            }
+        } catch (e) {
+            setClfError(apiErrorMessage(e, 'Retrain failed'))
+        } finally {
+            setClfRetraining(false)
+            classifierApi.status().then((r) => setClfStatus(r.data)).catch(() => {})
         }
     }
 
@@ -528,6 +556,53 @@ export default function LiveScanPage() {
                         </table>
                     </div>
                 )}
+            </GlassCard>
+
+            {/* ── Behavioural traffic classifier (ML app-category enrichment) ── */}
+            <GlassCard className="p-6">
+                <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                            Behavioural Traffic Classifier
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-violet-500/10 border border-violet-500/25 text-violet-500">RANDOM FOREST</span>
+                            {clfStatus == null ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-500/10 border border-slate-500/25 text-slate-400">checking…</span>
+                            ) : clfStatus.trained ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-violet-500/10 border border-violet-500/25 text-violet-500">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                                    trained{clfStatus.accuracy != null ? ` · ${(clfStatus.accuracy * 100).toFixed(0)}% acc` : ''}
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 border border-amber-500/25 text-amber-500">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> not trained yet
+                                </span>
+                            )}
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                            Predicts an app category (file-sharing, remote-access, AI, …) from a flow&apos;s behaviour when the destination can&apos;t be named — enriching anomaly-flagged flows with a &ldquo;look-alike&rdquo; category. Learns from bank-net traffic captured during live scans; retrain to fold in new samples.
+                        </p>
+                        {clfStatus && clfStatus.trained && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                <span className="px-2 py-0.5 rounded text-[11px] font-mono border bg-slate-500/10 border-slate-500/25 text-slate-400">{clfStatus.n_samples} samples</span>
+                                {clfStatus.categories.map((c) => (
+                                    <span key={c} className="px-2 py-0.5 rounded text-[11px] font-mono border bg-violet-500/10 border-violet-500/25 text-violet-500">{c}</span>
+                                ))}
+                                {clfStatus.trained_at && <span className="px-2 py-0.5 rounded text-[11px] font-mono border bg-slate-500/10 border-slate-500/25 text-slate-400">trained {clfStatus.trained_at.replace('T', ' ')}</span>}
+                            </div>
+                        )}
+                        {clfStatus && !clfStatus.trained && (
+                            <p className="text-xs text-amber-500 mt-2">Run a bank-net live scan so named flows are recorded, then retrain.</p>
+                        )}
+                    </div>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={handleClassifierRetrain} disabled={clfRetraining}
+                        className="px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-all text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                        <RefreshCw className="w-4 h-4" /> {clfRetraining ? 'Retraining…' : 'Retrain'}
+                    </motion.button>
+                </div>
+                {clfError && <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/25 text-sm text-red-400">{clfError}</div>}
+                {clfInfo && <div className="mt-3 p-3 rounded-lg bg-violet-500/10 border border-violet-500/25 text-sm text-violet-500">{clfInfo}</div>}
             </GlassCard>
 
             {!status.running && detections.length === 0 && (

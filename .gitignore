@@ -7,6 +7,10 @@ data/*.pcap
 
 # ── Trained model artifacts (regenerate with: python ml/model.py) ─────────────
 ml/artifacts/*.pkl
+ml/artifacts/*.json
+
+# ── Behavioural-classifier training samples (accumulated at runtime, per-network)
+ml/data/
 
 # ── Python cache ──────────────────────────────────────────────────────────────
 __pycache__/

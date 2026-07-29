@@ -16,6 +16,7 @@ from ml.load_cicids import FEATURE_COLS, load_all, train_mask
 from ml.preprocess  import preprocess, save_scaler, load_scaler
 from ml.oui         import vendor_from_mac
 from ml.ipinfo      import describe_destination
+from ml.traffic_classifier import classify, record_training_sample, BENIGN_LABEL, MIN_CONFIDENCE
 
 ARTIFACTS      = os.path.join(os.path.dirname(__file__), "artifacts")
 MODEL_PATH     = os.path.join(ARTIFACTS, "isolation_forest.pkl")
@@ -283,6 +284,10 @@ def detect(records):
         # Sanctioned services are authorised IT, not Shadow IT — always suppress
         # (named destinations only; a raw IP can't be verified as sanctioned).
         if host and is_sanctioned(host, allowlist):
+            # A named, sanctioned flow is ground-truth "normal" — record it as a
+            # benign training sample so the behavioural classifier can tell
+            # anomaly-flagged look-alikes apart from ordinary sanctioned traffic.
+            record_training_sample(row, BENIGN_LABEL)
             suppressed += 1
             continue
 
@@ -298,6 +303,9 @@ def detect(records):
             dst      = f'{app["app_name"]} ({host})'
             category = app["category"]
             source   = "catalog"
+            # Ground-truth (features -> catalog category): grows the classifier's
+            # training store from named flows (the bank-net testbed's traffic here).
+            record_training_sample(row, category)
         elif flagged[i]:
             # Named host → use it; otherwise enrich the raw destination IP
             # (label special ranges / reverse-DNS) or drop pure network noise.
@@ -312,7 +320,14 @@ def detect(records):
             if stype == "none":
                 stype = _infer_type(row)
             risk     = classify_risk(score, stype)
+            # Behavioural "look-alike" enrichment: this flow couldn't be named, but
+            # if the classifier confidently matches a real (non-benign) category,
+            # fill the otherwise-empty app_category. detection_source stays
+            # "anomaly" — a category on an anomaly row means it was model-predicted.
             category = None
+            cat, conf = classify(row)
+            if cat and cat != BENIGN_LABEL and conf >= MIN_CONFIDENCE:
+                category = cat
             source   = "anomaly"
         else:
             continue   # neither a known unsanctioned app nor anomalous — skip
