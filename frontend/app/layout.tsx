@@ -3,7 +3,7 @@ import '@/styles/globals.css'
 import Providers from './providers'
 
 export const metadata: Metadata = {
-    title: 'Sentinel — Shadow IT Detection',
+    title: 'FishNet — Shadow IT Detection',
     description: 'AI-Powered Network Anomaly Detection System',
 }
 

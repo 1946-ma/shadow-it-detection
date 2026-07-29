@@ -30,7 +30,7 @@ export default function SettingsPage() {
                     style={{ background: '#f5f6f6', border: '1px solid #e6e9e8' }}>
                     <div>
                         <p className="text-sm font-semibold" style={{ color: '#14201f' }}>Theme</p>
-                        <p className="text-xs mt-0.5" style={{ color: '#7c8b89' }}>Sentinel uses a single clean light theme.</p>
+                        <p className="text-xs mt-0.5" style={{ color: '#7c8b89' }}>FishNet uses a single clean light theme.</p>
                     </div>
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
                         style={{ background: 'rgba(42,116,119,0.10)', color: '#2a7477' }}>

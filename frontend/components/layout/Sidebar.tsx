@@ -7,8 +7,9 @@ import { clearAuth } from '@/lib/auth'
 import Cookies from 'js-cookie'
 import {
     LayoutDashboard, AlertCircle, Monitor, Package,
-    FileText, Settings, LogOut, BarChart3, Shield, Wifi, Sparkles, ShieldAlert,
+    FileText, Settings, LogOut, BarChart3, Wifi, Sparkles, ShieldAlert,
 } from 'lucide-react'
+import { NetIcon } from '@/components/ui/NetIcon'
 
 const WK = { indigo: '#2a7477', ink: '#14201f', muted: '#6b7089', line: '#e6e9e8', hover: '#f2f3fb' }
 
@@ -67,9 +68,9 @@ function RailContent({ expanded, onClose }: { expanded: boolean; onClose?: () =>
             {/* Brand */}
             <div className={`flex items-center mb-8 ${expanded ? 'gap-2.5 px-2' : 'justify-center'}`}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: WK.indigo }}>
-                    <Shield className="w-5 h-5 text-white" />
+                    <NetIcon className="w-5 h-5 text-white" />
                 </div>
-                {expanded && <span className="text-base font-bold tracking-tight" style={{ color: WK.ink }}>Sentinel</span>}
+                {expanded && <span className="text-base font-bold tracking-tight" style={{ color: WK.ink }}>FishNet</span>}
             </div>
 
             {/* Main nav */}

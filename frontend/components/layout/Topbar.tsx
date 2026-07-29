@@ -8,8 +8,9 @@ import { authApi, statsApi } from '@/lib/api'
 import {
     Search, Bell, UserCircle, Settings, LogOut,
     LayoutDashboard, AlertCircle, Monitor, Package, FileText, BarChart3, Wifi,
-    X, Shield, Menu,
+    X, Menu,
 } from 'lucide-react'
+import { NetIcon } from '@/components/ui/NetIcon'
 
 const SEARCH_INDEX = [
     { label: 'Overview',     description: 'Dashboard summary & stats',       href: '/dashboard',              icon: LayoutDashboard, keywords: ['overview','dashboard','home','summary','stats'] },
@@ -146,10 +147,10 @@ export default function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                         <Menu className="w-5 h-5 text-slate-700 dark:text-white" />
                     </button>
                     <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/35 flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-4 h-4 text-blue-400" />
+                        <NetIcon className="w-4 h-4 text-blue-400" />
                     </div>
                     <div>
-                        <p className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Sentinel</p>
+                        <p className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-tight">FishNet</p>
                         <p className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest hidden sm:block">Detection</p>
                     </div>
                 </div>

@@ -17,7 +17,7 @@ export function Logo({ size = 36, className = '', variant = 'icon' }: LogoProps)
                 viewBox="0 0 40 40"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                aria-label="SentinelAI logo"
+                aria-label="FishNet logo"
             >
                 {/* Background tile */}
                 <rect width="40" height="40" rx="10" fill="rgba(59,130,246,0.15)" />
@@ -54,7 +54,7 @@ export function Logo({ size = 36, className = '', variant = 'icon' }: LogoProps)
             {variant === 'full' && (
                 <div>
                     <p className="text-base font-bold text-slate-900 dark:text-white leading-tight tracking-tight">
-                        Sentinel<span className="text-blue-500">AI</span>
+                        Fish<span className="text-blue-500">Net</span>
                     </p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-500 leading-none tracking-wide uppercase">
                         Detection

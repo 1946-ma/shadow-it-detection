@@ -2,7 +2,8 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
+import { NetIcon } from '@/components/ui/NetIcon'
 import { authApi, apiErrorMessage } from '@/lib/api'
 import { setAuthFromLogin } from '@/lib/auth'
 
@@ -107,9 +108,9 @@ function LoginPageInner() {
                         {/* logo */}
                         <motion.div variants={item} className="flex items-center gap-2.5">
                             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(6px)' }}>
-                                <ShieldCheck className="w-5 h-5 text-white" />
+                                <NetIcon className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-lg font-bold tracking-tight text-white">Sentinel</span>
+                            <span className="text-lg font-bold tracking-tight text-white">FishNet</span>
                         </motion.div>
 
                         {/* cycling tagline + dots */}
@@ -139,7 +140,7 @@ function LoginPageInner() {
                     className="p-8 sm:p-12 flex flex-col justify-center" style={{ background: '#212429' }}>
                     <motion.h1 variants={item} className="text-4xl sm:text-[2.7rem] font-bold mb-2 tracking-tight text-white">Welcome back</motion.h1>
                     <motion.p variants={item} className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        Sign in to your Sentinel dashboard. New here?{' '}
+                        Sign in to your FishNet dashboard. New here?{' '}
                         <button type="button" className="font-medium underline" style={{ color: TEAL }} onClick={() => setError('Contact your system administrator for access.')}>
                             Request access
                         </button>
